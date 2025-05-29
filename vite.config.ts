@@ -15,6 +15,7 @@ export default defineConfig({
     allowedHosts: ['8f0f-66-96-225-146.ngrok-free.app']
   },
   optimizeDeps: {
-    include: ['disqus-react']
+    include: ['disqus-react'],
+    exclude: ['@tiptap/react', '@tiptap/starter-kit', '@tiptap/extension-image']
   }
 })

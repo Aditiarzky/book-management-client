@@ -35,28 +35,35 @@ const useGenreStore = create<GenreStore>((set) => ({
   },
 
   addGenre: async (data) => {
+    set({ loading: true });
     try {
-      const { genre } = await createGenre(data);
-      set((state) => ({ genres: [genre, ...state.genres] }));
+      const result = await createGenre(data);
+      set((state) => ({ genres: [result.data, ...state.genres] }));
       toast.success('Genre berhasil ditambahkan');
     } catch (error) {
       toast.error(getErrorMessage(error));
+    } finally {
+      set({ loading: false });
     }
   },
 
   editGenre: async (id, data) => {
+    set({ loading: true });
     try {
-      const { genre } = await updateGenre(id, data);
+      const result = await updateGenre(id, data);
       set((state) => ({
-        genres: state.genres.map((g) => (g.id === id ? genre : g)),
+        genres: state.genres.map((g) => (g.id === id ? result.data : g)),
       }));
       toast.success('Genre berhasil diperbarui');
     } catch (error) {
       toast.error(getErrorMessage(error));
+    } finally {
+      set({ loading: false });
     }
   },
 
   removeGenre: async (id) => {
+    set({ loading: true });
     try {
       await deleteGenre(id);
       set((state) => ({
@@ -65,6 +72,8 @@ const useGenreStore = create<GenreStore>((set) => ({
       toast.success('Genre berhasil dihapus');
     } catch (error) {
       toast.error(getErrorMessage(error));
+    } finally {
+      set({ loading: false });
     }
   },
 }));

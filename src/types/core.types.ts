@@ -1,3 +1,14 @@
+export interface IUser {
+  id?: string;
+  name: string;
+  email: string;
+  password?: string;
+}
+
+export interface ICredentials {
+  email: string;
+  password: string;
+}
 
 export interface IGenre {
   id?: number;
@@ -79,13 +90,21 @@ export interface IChapterCreateInput {
   bookId: number;
   chapter: number;
   volume?: number | null;
-  nama: string;
+  nama?: string;
   thumbnail?: string | null;
   isigambar?: string | null;
   isitext?: string | null;
 }
 
+export interface IUpFileStore {
+  loading: boolean;
+  onProgress: number;
+  uploadFile: (file: File, onUploadProgress?: (progress: number) => void) => Promise<string | null>;
+  uploadFileMultiple: (file: File, onUploadProgress?: (progress: number) => void) => Promise<string | null>;
+}
+
 export interface IChapterUpdateInput {
+  bookId: number;
   chapter?: number;
   volume?: number | null;
   nama?: string;

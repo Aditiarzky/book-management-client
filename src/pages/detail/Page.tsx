@@ -4,6 +4,7 @@ import useBookStore from "../../store/useBookStore";
 import DetailComponent from "./Component";
 import GuestLayout from "../layouts/GuestLayout";
 import Sekeleton from "@/components/Sekeleton";
+import { setMetaTags } from "@/utils/meta";
 
 export default function Detail() {
   const { fetchBookById, loading: loadingBook, detailBook } = useBookStore();
@@ -14,6 +15,17 @@ export default function Detail() {
   useEffect(() => {
     fetchBookById(parseId);
   }, [fetchBookById]);
+
+  useEffect(()=>{
+    if(detailBook && !loadingBook){
+      setMetaTags({
+      title: `Baca ${detailBook.judul} terbaru | Riztranslation`,
+      description: detailBook.synopsis || `Baca ${detailBook.judul} terbaru di website Riztranslation`,
+      image: detailBook.cover || 'https://i.imgur.com/uaZ4pwN.jpeg',
+      url: window.location.href,
+    })
+    }
+  })
 
   return (
     <GuestLayout>

@@ -108,7 +108,7 @@ export default function HomeComponent() {
 
   return (
     <div>
-      <main className="transition-all w-full duration-500 max-w-6xl mx-auto px-4">
+      <main className="transition-all w-full duration-500 max-w-6xl mx-auto md:px-4 px-2">
         <div>
           {/* Content */}
           <header className="h-fit w-full bg-center bg-cover relative">

@@ -1,11 +1,15 @@
 import { createRouter, createRoute } from '@tanstack/react-router'
 import { rootRoute } from './root'
-import Home from '../pages/home/Page'
-import Detail from '../pages/detail/Page'
+import { lazy } from 'react'
 import * as PATH from './constants'
-import ViewCh from '../pages/view/Page'
-import NotFound from '../pages/notfound/Page'
-import Search from '@/pages/search/Page'
+
+const Home = lazy(() => import('../pages/home/Page'))
+const Detail = lazy(() => import('../pages/detail/Page'))
+const ViewCh = lazy(() => import('../pages/view/Page'))
+const Search = lazy(() => import('../pages/search/Page'))
+const AdminPage = lazy(() => import('../pages/admin/Page'))
+const LoginPage = lazy(() => import('../pages/auth/Page'))
+const NotFound = lazy(() => import('../pages/notfound/Page'))
 
 const homeRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -30,6 +34,17 @@ const viewRoute = createRoute({
   path: PATH.VIEW_PAGE,
   component: ViewCh,
 })
+const adminRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: PATH.ADMIN_PAGE,
+  component: AdminPage,
+})
+
+const loginRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: PATH.LOGIN_PAGE,
+  component: LoginPage,
+})
 const notFoundRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "*",
@@ -41,7 +56,9 @@ const routeTree = rootRoute.addChildren([
   searchRoute,
   detailRoute,
   viewRoute,
-  notFoundRoute
+  adminRoute,
+  loginRoute,
+  notFoundRoute,
 ])
 
 export const router = createRouter({ routeTree })

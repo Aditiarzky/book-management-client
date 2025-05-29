@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate} from '@tanstack/react-router';
-import { ALargeSmall, ChevronLeft, ChevronRight, CloudAlert, Home } from 'lucide-react';
+import { ALargeSmall, ChevronLeft, ChevronRight, CloudAlert, LibraryBig } from 'lucide-react';
 import { DiscussionEmbed } from 'disqus-react';
 import { useTheme } from '@/context/ThemeContext';
 import type { IBook, IChapter } from '@/types/core.types';
@@ -22,66 +22,59 @@ interface ImageBlockProps {
   alt: string;
 }
 
-const ImageBlock = ({ image, alt }:ImageBlockProps) => {
-  const canvasParentRef = useRef<HTMLDivElement>(null)
+const ImageBlock = ({ image, alt }: ImageBlockProps) => {
+  const canvasRefs = useRef<(HTMLCanvasElement | null)[]>([])
+  const [loadedCount, setLoadedCount] = useState(0)
+  const [errors, setErrors] = useState<number[]>([])
+  const [imageLoadStates, setImageLoadStates] = useState<Record<number, 'loading' | 'loaded' | 'error'>>({})
 
   const imageUrls = useMemo(() => {
     if (!image) return []
-    const imageStringTrimmed = image.replace(/^\[|\]$/g, '')
-    if (!imageStringTrimmed) return []
-    return imageStringTrimmed
+    const trimmed = image.replace(/^\[|\]$/g, '')
+    return trimmed
       .split(',')
       .map((url) => url.trim().replace(/^"|"$/g, ''))
       .filter(Boolean)
   }, [image])
 
-  const [loadedCount, setLoadedCount] = useState(0)
-  const [hasError, setHasError] = useState(false)
+  const handleImageLoad = (index: number) => {
+    setLoadedCount((prev) => prev + 1)
+    setImageLoadStates((prev) => ({ ...prev, [index]: 'loaded' }))
+  }
 
-  useEffect(() => {
-    if (!canvasParentRef.current || imageUrls.length === 0) return
+  const handleImageError = (index: number, url: string) => {
+    setErrors((prev) => [...prev, index])
+    setImageLoadStates((prev) => ({ ...prev, [index]: 'error' }))
 
-    setLoadedCount(0)
-    setHasError(false)
+    const canvas = canvasRefs.current[index]
+    if (!canvas) return
 
-    const canvasNodes = canvasParentRef.current.children
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
 
-    imageUrls.forEach((url, index) => {
-      const canvasElement = canvasNodes[index] as HTMLCanvasElement
-      if (!(canvasElement instanceof HTMLCanvasElement)) return
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
 
-      const ctx = canvasElement.getContext('2d')
-      if (!ctx) return
+    img.onload = () => {
+      canvas.width = img.naturalWidth
+      canvas.height = img.naturalHeight
+      ctx.drawImage(img, 0, 0)
+    }
 
-      const img = new Image()
-      img.crossOrigin = 'anonymous'
+    img.onerror = () => {
+      canvas.width = 300
+      canvas.height = 150
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      ctx.fillStyle = "red"
+      ctx.font = "16px Arial"
+      ctx.textAlign = "center"
+      ctx.fillText("Gagal memuat gambar", canvas.width / 2, canvas.height / 2)
+    }
 
-      img.onload = () => {
-        canvasElement.width = img.naturalWidth
-        canvasElement.height = img.naturalHeight
-        ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight)
+    img.src = url
+  }
 
-        setLoadedCount((prev) => prev + 1)
-      }
-
-      img.onerror = () => {
-        setHasError(true)
-        setLoadedCount((prev) => prev + 1)
-
-        ctx.clearRect(0, 0, canvasElement.width, canvasElement.height)
-        ctx.font = "16px Arial"
-        ctx.fillStyle = "red"
-        ctx.textAlign = "center"
-        if (canvasElement.width > 0 && canvasElement.height > 0) {
-          ctx.fillText("Gagal memuat gambar", canvasElement.width / 2, canvasElement.height / 2)
-        }
-      }
-
-      img.src = url
-    })
-  }, [imageUrls])
-
-  const progress = (loadedCount / imageUrls.length) * 100
+  const progress = imageUrls.length > 0 ? (loadedCount / imageUrls.length) * 100 : 0
 
   return (
     <div className="space-y-4">
@@ -89,22 +82,51 @@ const ImageBlock = ({ image, alt }:ImageBlockProps) => {
         <div className="w-1/2 max-w-md mx-auto">
           <Progress value={progress} />
           <p className="text-center text-sm text-muted-foreground mt-2">
-            Load image... ({loadedCount}/{imageUrls.length})
+            Memuat gambar... ({loadedCount}/{imageUrls.length})
           </p>
         </div>
       )}
-      {hasError && progress === 100 && (
-        <p className="text-red-500 text-center">Beberapa gambar gagal dimuat.</p>
+
+      {errors.length > 0 && progress === 100 && (
+        <p className="text-red-500 text-center">Beberapa gambar gagal dimuat, ditampilkan ulang dengan canvas.</p>
       )}
 
-      <div ref={canvasParentRef}>
-        {imageUrls.map((_, index) => (
-          <canvas
-            key={index}
-            className="w-full"
-            aria-label={`${alt} - bagian ${index + 1}`}
-          />
-        ))}
+      <div>
+        {imageUrls.map((url: string, index) => {
+          const state = imageLoadStates[index]
+
+          if (state === 'error') {
+            return (
+              <canvas
+                key={index}
+                ref={(el) => {
+                  canvasRefs.current[index] = el
+                }}
+                aria-label={`Canvas fallback untuk ${alt} - bagian ${index + 1}`}
+                className="w-full"
+              />
+            )
+          }
+
+          return (
+            <div key={index} className="relative w-full">
+              {/* Always render <img>, handle state via onLoad/onError */}
+              <img
+                src={url}
+                alt={`${alt} - bagian ${index + 1}`}
+                loading="lazy"
+                className={`w-full transition-opacity duration-300 ${
+                  state === 'loaded' ? 'opacity-100' : 'opacity-0'
+                }`}
+                onLoad={() => handleImageLoad(index)}
+                onError={() => handleImageError(index, url)}
+              />
+              {state !== 'loaded' && (
+                <div className="absolute inset-0 my-2 bg-muted animate-pulse rounded-md" />
+              )}
+            </div>
+          )
+        })}
       </div>
     </div>
   )
@@ -172,14 +194,14 @@ function NavCh({ chapter, konten, prevChapter, listCh, nextChapter}:NavChInterfa
         <div className="my-5 ps-3 pe-3 flex w-full justify-center text-white gap-3">
           {prevChapter && (
             <Button className="hov-b w-fit p-0 text-white" onClick={handleGoToPrevChapter}>
-              <div className="px-5 py-2.5 bg-gray-900 shadow-[rgba(50,_50,_105,_0.15)_0px_2px_5px_0px,_rgba(0,_0,_0,_0.05)_0px_1px_1px_0px] rounded">
+              <div className="px-3 py-2.5 bg-gray-900 shadow-[rgba(50,_50,_105,_0.15)_0px_2px_5px_0px,_rgba(0,_0,_0,_0.05)_0px_1px_1px_0px] rounded">
                 <ChevronLeft className='h-4' />
               </div>
             </Button>
           )}
           <Link className="hov-b" to={DETAIL_PAGE} params={{id:`${konten?.id}`}}>
-            <div className="px-5 py-2.5 bg-gray-900 shadow-[rgba(50,_50,_105,_0.15)_0px_2px_5px_0px,_rgba(0,_0,_0,_0.05)_0px_1px_1px_0px] rounded">
-              <Home className='h-4' />
+            <div className="px-3 py-2.5 bg-gray-900 shadow-[rgba(50,_50,_105,_0.15)_0px_2px_5px_0px,_rgba(0,_0,_0,_0.05)_0px_1px_1px_0px] rounded">
+              <LibraryBig className='h-4' />
             </div>
           </Link>
           <div className="bg-gray-900 shadow-[rgba(50,_50,_105,_0.15)_0px_2px_5px_0px,_rgba(0,_0,_0,_0.05)_0px_1px_1px_0px] rounded">
@@ -198,7 +220,7 @@ function NavCh({ chapter, konten, prevChapter, listCh, nextChapter}:NavChInterfa
           </div>
           {nextChapter && (
             <Button className="hov-b w-fit p-0 text-white" onClick={handleGoToNextChapter}>
-              <div className="px-5 py-2.5 bg-gray-900 shadow-[rgba(50,_50,_105,_0.15)_0px_2px_5px_0px,_rgba(0,_0,_0,_0.05)_0px_1px_1px_0px] rounded">
+              <div className="px-3 py-2.5 bg-gray-900 shadow-[rgba(50,_50,_105,_0.15)_0px_2px_5px_0px,_rgba(0,_0,_0,_0.05)_0px_1px_1px_0px] rounded">
                 <ChevronRight className='h-4' />
               </div>
             </Button>
@@ -248,6 +270,90 @@ const nextChapter = currentIndex < sortedChapters.length - 1 ? sortedChapters[cu
 
   return (
     <div key={viewChapter?.id}>
+      <style>
+        {`
+          .tiptap-content {
+            min-height: 200px; /* Ensures the container has a minimum height */
+          }
+          .tiptap-content h1 {
+            font-size: 2em;
+            font-weight: bold;
+            margin: 1em 0;
+            text-indent: 0; /* No indentation for headings */
+          }
+          .tiptap-content h2 {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin: 1em 0;
+            text-indent: 0; /* No indentation for headings */
+          }
+          .tiptap-content p {
+            margin: 1.2em 0; /* Clear separation between paragraphs */
+            min-height: 1.5em; /* Visible height for empty paragraphs */
+            line-height: 1.6; /* Improved readability */
+            text-indent: 2em; /* Novel-like first-line indentation */
+          }
+          .tiptap-content p:empty {
+            text-indent: 0; /* No indentation for empty paragraphs */
+          }
+          .tiptap-content p:empty::after {
+            content: '\u200B'; /* Zero-width space to force empty paragraph rendering */
+          }
+          .tiptap-content br {
+            display: block;
+            content: '';
+            margin-bottom: 1.2em; /* Spacing for line breaks */
+          }
+          .tiptap-content ul,
+          .tiptap-content ol {
+            margin: 1.2em 0;
+            padding-left: 2em;
+          }
+          .tiptap-content ul li {
+            list-style-type: disc;
+            margin: 0.5em 0; /* Spacing between list items */
+          }
+          .tiptap-content ol li {
+            list-style-type: decimal;
+            margin: 0.5em 0; /* Spacing between list items */
+          }
+          .tiptap-content a {
+            color: #1a73e8;
+            text-decoration: underline;
+          }
+          .tiptap-content strong {
+            font-weight: bold;
+          }
+          .tiptap-content em {
+            font-style: italic;
+          }
+          .tiptap-content u {
+            text-decoration: underline;
+          }
+          .tiptap-content img {
+            width: 100%;
+            max-width: 100%;
+            height: auto;
+            margin: 0.5em 0;
+          }
+          .tiptap-content [data-type="highlight"] {
+            background-color: yellow;
+          }
+          .tiptap-content [style*="text-align: left"] {
+            text-align: left;
+          }
+          .tiptap-content [style*="text-align: center"] {
+            text-align: center;
+          }
+          .tiptap-content [style*="text-align: right"] {
+            text-align: right;
+          }
+          .tiptap-content [style*="text-align: justify"] {
+            text-align: justify;
+          }
+        `}
+      </style>
+
       <div>
         <NavCh
           konten={viewChapter?.book}
@@ -260,7 +366,9 @@ const nextChapter = currentIndex < sortedChapters.length - 1 ? sortedChapters[cu
 
       <main className="transition-all min-h-dvh flex mb-10 flex-col items-center w-full duration-500 max-w-6xl mx-auto md:px-4 px-2">
         <div className="my-5 w-full flex flex-col gap-1 items-center">
-          <h1 className="text-2xl font-medium text-center">{viewChapter.book.judul}</h1>
+          <h1 className="text-2xl hover:underline font-medium text-center">
+            <Link to={DETAIL_PAGE} params={{id:viewChapter.bookId.toString()}}>{viewChapter.book.judul}</Link>
+          </h1>
           <h1 className="text-xl font-medium">
             Chapter {viewChapter.chapter}
             {viewChapter.volume && <span className="ml-1">Vol {viewChapter.volume}</span>}
@@ -292,16 +400,16 @@ const nextChapter = currentIndex < sortedChapters.length - 1 ? sortedChapters[cu
         )}
 
         {viewChapter.isitext && (
-          <div className={`text ${fontSizeClass}`} dangerouslySetInnerHTML={createMarkup(viewChapter.isitext)} />
+          <div className={`tiptap-content px-2 ${fontSizeClass}`} dangerouslySetInnerHTML={createMarkup(viewChapter.isitext)} />
         )}
         {viewChapter.isigambar && (
           <ImageBlock image={viewChapter.isigambar} alt={`Chapter ${viewChapter.chapter} - ${viewChapter.book.judul}`} />
         )}
       </main>
-      <section className='w-full max-w-6xl mx-auto px-2 py-10 dark:text-white text-black min-h-96'>
-          <div className='rounded-md border shadow-xl dark:shadow-gray-800 p-6'>
-            <DiscussionEmbed key={`disqus-${viewChapter?.id}-${theme}`} shortname={disqusShortname} config={disqusConfig} />
-          </div>
+      <section className="w-full max-w-6xl mx-auto px-2 py-10 dark:text-white text-black min-h-96">
+        <div className="rounded-md border shadow-xl dark:shadow-gray-800 p-6">
+          <DiscussionEmbed key={`disqus-${viewChapter?.id}-${theme}`} shortname={disqusShortname} config={disqusConfig} />
+        </div>
       </section>
     </div>
   );
