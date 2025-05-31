@@ -91,15 +91,15 @@ const useChapterStore = create<ChapterStore>((set, get) => ({
   addChapter: async (data) => {
     set({ loading: true });
     try {
-      const { chapter } = await createChapter(data);
+      const result = await createChapter(data);
       set((state) => {
         const bookId = data.bookId;
         const chapterByBookKey = `${bookId}`;
-        const updatedChapterByBook = [chapter, ...(state.chapterByBook || [])];
+        const updatedChapterByBook = [result.data, ...(state.chapterByBook || [])];
 
         return {
           loading:false,
-          chapters: [chapter, ...state.chapters],
+          chapters: [result.data, ...state.chapters],
           chapterByBook: updatedChapterByBook,
           cache: {
             ...state.cache,
@@ -230,9 +230,45 @@ const useChapterStore = create<ChapterStore>((set, get) => ({
     set({ loading: true });
     try {
       await deleteChapter(id);
-      set((state) => ({
-        chapters: state.chapters.filter((g) => g.id !== id),
-      }));
+
+      set((state) => {
+        // Filter chapter dari chapters
+        const updatedChapters = state.chapters.filter((g) => g.id !== id);
+
+        // Filter chapter dari chapterByBook
+        const updatedChapterByBook = state.chapterByBook.filter((g) => g.id !== id);
+
+        // Update semua cache.chapterByBook
+        const updatedCacheChapterByBook = { ...state.cache.chapterByBook };
+        for (const key in updatedCacheChapterByBook) {
+          const entry = updatedCacheChapterByBook[key];
+          updatedCacheChapterByBook[key] = {
+            ...entry,
+            data: entry.data.filter((g) => g.id !== id),
+          };
+        }
+
+        // Update semua cache.chapters
+        const updatedCacheChapters = { ...state.cache.chapters };
+        for (const key in updatedCacheChapters) {
+          const entry = updatedCacheChapters[key];
+          updatedCacheChapters[key] = {
+            ...entry,
+            data: entry.data.filter((g) => g.id !== id),
+          };
+        }
+
+        return {
+          chapters: updatedChapters,
+          chapterByBook: updatedChapterByBook,
+          cache: {
+            ...state.cache,
+            chapterByBook: updatedCacheChapterByBook,
+            chapters: updatedCacheChapters,
+          },
+        };
+      });
+
       toast.success('Chapter berhasil dihapus');
     } catch (error) {
       toast.error(getErrorMessage(error));

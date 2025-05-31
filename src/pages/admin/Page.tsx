@@ -200,7 +200,7 @@ export default function AdminPage() {
       case "chapters":
         return (
           <ChaptersTable
-            chapters={selectedBook ? chapterByBook : chapters}
+            chapters={selectedBook ? (chapterByBook || []) : chapters} // Provide empty array if chapterByBook is undefined
             book={selectedBook}
             loading={chaptersLoading}
             onAdd={handleAddChapter}
@@ -223,7 +223,6 @@ export default function AdminPage() {
         return <DashboardStats />;
     }
   };
-
   return (
     <div className="flex flex-col">
       <Navigation />

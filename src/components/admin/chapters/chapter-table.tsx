@@ -42,11 +42,12 @@ export default function ChaptersTable({
   const [searchTerm, setSearchTerm] = useState("")
   const [deleteId, setDeleteId] = useState<number | null>(null)
 
-  const filteredChapters = chapters.filter(
+  const filteredChapters = chapters.filter((chapter): chapter is IChapter => !!chapter).filter(
     (chapter) =>
-      chapter.nama.toLowerCase().includes(searchTerm.toLowerCase()) || chapter.chapter.toString().includes(searchTerm),
-  )
-
+      (chapter.nama ? chapter.nama.toLowerCase().includes(searchTerm.toLowerCase()) : false) ||
+      chapter.chapter.toString().includes(searchTerm),
+  );
+  
   return (
     <Card>
       <CardHeader>

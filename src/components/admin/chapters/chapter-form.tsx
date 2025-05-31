@@ -142,18 +142,28 @@ export default function ChapterForm({ chapter, book, onSubmit, onCancel, loading
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
     if (formData.chapter < 0) {
       return;
     }
+
+    // Ambil thumbnail dari isigambar jika kosong
+    const thumbnail = formData.thumbnail?.trim();
+    const fallbackThumbnail =
+      (!thumbnail || thumbnail === "") && formData.isigambar.length > 0
+        ? formData.isigambar[Math.floor(Math.random() * formData.isigambar.length)]
+        : thumbnail;
+
     const submitData: IChapterCreateInput | IChapterUpdateInput = {
       ...formData,
       volume: formData.volume || null,
-      thumbnail: formData.thumbnail || null,
+      thumbnail: fallbackThumbnail || null,
       isigambar: formData.isigambar.length > 0 ? JSON.stringify(formData.isigambar) : undefined,
       isitext: formData.isitext || null,
     };
+
     onSubmit(submitData);
-    console.log(submitData)
+    console.log(submitData);
   };
 
   const handleThumbnailUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -184,7 +194,6 @@ export default function ChapterForm({ chapter, book, onSubmit, onCancel, loading
 
     setUploadingFiles((prev) => [...prev, ...newUploadingFiles]);
 
-    const newUrls: string[] = [];
     const uploadPromises = Array.from(files).map(async (file, index) => {
       const url = await uploadFileMultiple(file, (progress) => {
         setUploadingFiles((prev) =>
@@ -193,17 +202,27 @@ export default function ChapterForm({ chapter, book, onSubmit, onCancel, loading
           )
         );
       });
-      if (url) {
-        newUrls.push(url);
-      }
-      return url;
+      return { index, url };
     });
 
-    await Promise.all(uploadPromises);
+    const uploadedResults = await Promise.all(uploadPromises);
+
+    // Urutkan berdasarkan urutan input file (index)
+    const sortedUrls = uploadedResults
+      .filter((res) => res.url)
+      .sort((a, b) => a.index - b.index)
+      .map((res) => res.url!);
+
     setFormData((prev) => ({
       ...prev,
-      isigambar: [...prev.isigambar, ...newUrls.filter((url): url is string => url !== null)],
+      isigambar: [...prev.isigambar, ...sortedUrls],
     }));
+
+    // Bersihkan uploaded files
+    setUploadingFiles((prev) =>
+      prev.filter((item) => !newUploadingFiles.some((newItem) => newItem.id === item.id))
+    );
+
     setUploadingFiles((prev) => prev.filter((item) => !newUploadingFiles.some((newItem) => newItem.id === item.id)));
   };
 
