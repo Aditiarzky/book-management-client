@@ -84,12 +84,12 @@ export const Ch = ({ thumbnail, chapter, volume, nama, created_at, bookId, id, t
           style={{ backgroundImage: `url(${thumbnail || noImage})` }}
           className="w-fit rounded-lg hov-b bg-no-repeat bg-cover"
         >
-          <div className="flex h-24 p-1 flex-col text-white justify-end w-36 rounded-lg bg-gradient-to-t from-gray-900/70">
+          <div className="flex h-28 font-medium p-1 flex-col text-white justify-end w-36 rounded-lg bg-gradient-to-t from-gray-900/70">
             <h1 className="text-xs">
               Chapter {chapter}
               {volume && <span className="ml-1">Vol {volume}</span>}
-              {nama && <span className="ml-1">{nama}</span>}
             </h1>
+            <p className='text-xs'>{nama && <span>{nama}</span>}</p>
             <span className="text-[9px]">{formattedDate}</span>
           </div>
         </div>

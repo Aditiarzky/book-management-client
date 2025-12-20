@@ -1,7 +1,7 @@
 /* eslint-disable no-constant-binary-expression */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate} from '@tanstack/react-router';
-import { ALargeSmall, ChevronLeft, ChevronRight, CloudAlert, LibraryBig, RefreshCw, Home } from 'lucide-react';
+import {ChevronLeft, ChevronRight, CloudAlert, LibraryBig, RefreshCw, Home } from 'lucide-react';
 import { DiscussionEmbed } from 'disqus-react';
 import { useTheme } from '@/context/ThemeContext';
 import type { IBook, IChapter } from '@/types/core.types';
@@ -9,6 +9,23 @@ import { DETAIL_PAGE, VIEW_PAGE } from '@/routes/constants';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
+
+// Custom Switch Component
+const CustomSwitch = ({ checked, onCheckedChange }: { checked: boolean; onCheckedChange: (checked: boolean) => void }) => {
+  return (
+    <label className="relative inline-flex items-center cursor-pointer">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onCheckedChange(e.target.checked)}
+        className="sr-only"
+      />
+      <div className={`w-11 h-6 bg-gray-200 rounded-md peer dark:bg-gray-700 ${checked ? 'bg-gray-500' : ''}`}>
+        <div className={`absolute top-0.5 left-[2px] bg-white border-gray-300 border rounded-md h-5 w-5 transition-all ${checked ? 'translate-x-5' : ''}`}></div>
+      </div>
+    </label>
+  );
+};
 
 // Komponen Empty State untuk Chapter
 const EmptyChapterState = ({ onRefresh, onGoHome }: { 
@@ -265,7 +282,7 @@ function NavCh({ chapter, konten, prevChapter, listCh, nextChapter}:NavChInterfa
               <SelectContent className='bg-gray-900 text-gray-500'>
                 {listCh.map((ch) => (
                   <SelectItem key={ch.id} value={ch.id.toString()}>
-                    Chapter {ch.chapter}
+                    {ch.volume ? `Vol ${ch.volume} Ch ${ch.chapter}` : `Ch ${ch.chapter}`}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -288,6 +305,7 @@ export default function ViewComponent(
   { viewChapter, chapterByBook}:
   {viewChapter:IChapter|null, chapterByBook:IChapter[]}) {
   const [fontSizeClass, setFontSizeClass] = useState('');
+  const [readingMode, setReadingMode] = useState(false);
   const { theme } = useTheme();
   const navigate = useNavigate();
   
@@ -301,12 +319,20 @@ export default function ViewComponent(
   useEffect(() => {
     const savedFontSize = localStorage.getItem('fontSize');
     setFontSizeClass(savedFontSize || 'text-md');
+    const savedReadingMode = localStorage.getItem('readingMode');
+    setReadingMode(savedReadingMode === 'true');
   }, []);
 
   const handleFontSizeChange = (event: { target: { value: string; }; }) => {
     const selectedFontSize = event.target.value;
     setFontSizeClass(selectedFontSize);
     localStorage.setItem('fontSize', selectedFontSize);
+  };
+
+  const toggleReadingMode = () => {
+    const newMode = !readingMode;
+    setReadingMode(newMode);
+    localStorage.setItem('readingMode', newMode.toString());
   };
 
   const createMarkup = (text: string) => {
@@ -326,7 +352,14 @@ export default function ViewComponent(
     return <EmptyChapterState onRefresh={handleRefresh} onGoHome={handleGoHome} />;
   }
 
-const sortedChapters = [...chapterByBook].sort((a, b) => a.chapter - b.chapter);
+const sortedChapters = [...chapterByBook].sort((a, b) => {
+  const volA = a.volume ?? 0;
+  const volB = b.volume ?? 0;
+  if (volA !== volB) {
+    return volA - volB;
+  }
+  return a.chapter - b.chapter;
+});
 const currentIndex = sortedChapters.findIndex((ch) => ch.id === viewChapter.id);
 const prevChapter = currentIndex > 0 ? sortedChapters[currentIndex - 1] : null;
 const nextChapter = currentIndex < sortedChapters.length - 1 ? sortedChapters[currentIndex + 1] : null;
@@ -337,6 +370,7 @@ const nextChapter = currentIndex < sortedChapters.length - 1 ? sortedChapters[cu
       <style>
         {`
           .tiptap-content {
+            font-family:serif;
             min-height: 200px; /* Ensures the container has a minimum height */
           }
           .tiptap-content h1 {
@@ -352,7 +386,7 @@ const nextChapter = currentIndex < sortedChapters.length - 1 ? sortedChapters[cu
             text-indent: 0; /* No indentation for headings */
           }
           .tiptap-content p {
-            margin: 1.2em 0; /* Clear separation between paragraphs */
+            margin: 1em 0; /* Clear separation between paragraphs */
             min-height: 1.5em; /* Visible height for empty paragraphs */
             line-height: 1.5; /* Improved readability */
             text-indent: 1em; /* Novel-like first-line indentation */
@@ -428,9 +462,9 @@ const nextChapter = currentIndex < sortedChapters.length - 1 ? sortedChapters[cu
         />
       </div>
 
-      <main className="transition-all min-h-dvh flex mb-10 flex-col items-center w-full duration-500 max-w-6xl mx-auto md:px-4 px-2">
-        <div className="my-5 w-full flex flex-col gap-1 items-center">
-          <h1 className="text-2xl hover:underline font-medium text-center">
+      <main className="transition-all min-h-dvh flex mb-10 flex-col items-center w-full duration-500 max-w-6xl mx-auto">
+        <div className="my-5 w-full md:px-4 px-2 flex flex-col gap-1 items-center">
+          <h1 className="text-2xl hover:underline font-semibold text-center">
             <Link to={DETAIL_PAGE} params={{id:viewChapter.bookId.toString()}}>{viewChapter.book.judul}</Link>
           </h1>
           <h1 className="text-xl font-medium">
@@ -439,29 +473,41 @@ const nextChapter = currentIndex < sortedChapters.length - 1 ? sortedChapters[cu
             {viewChapter.nama && <span className="ml-1">{viewChapter.nama}</span>}
           </h1>
         </div>
-
+        <div className='md:px-4 w-full px-2'>
         {viewChapter.isitext && (
-          <div className="mb-4 flex flex-col items-end justify-end w-full">
-            <label htmlFor="fontSize" className="mb-1 flex">
-              Font Size <ALargeSmall />
-            </label>
-            <select
-              id="fontSize"
-              className="pl-2 pe-10 cursor-pointer py-1 border text-gray-500 border-gray-300 bg-inherit rounded"
-              value={fontSizeClass}
-              onChange={handleFontSizeChange}
-            >
-              <option value="text-xs">XS</option>
-              <option value="text-sm">SM</option>
-              <option value="text-md">MD</option>
-              <option value="text-lg">LG</option>
-              <option value="text-xl">XL</option>
-              <option value="text-2xl">2XL</option>
-              <option value="text-3xl">3XL</option>
-              <option value="text-4xl">4XL</option>
-            </select>
+          <div className="mb-4 flex flex-col items-end justify-end w-full gap-2">
+            <div className="flex items-center gap-2">
+              <label htmlFor="readingMode" className="text-sm font-medium">
+                Reading Theme
+              </label>
+              <CustomSwitch
+                checked={readingMode}
+                onCheckedChange={toggleReadingMode}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <label htmlFor="fontSize" className="text-sm font-medium flex items-center gap-1">
+                Font Size
+              </label>
+              <select
+                id="fontSize"
+                className="pl-2 pe-10 cursor-pointer py-1 border text-gray-500 border-gray-300 bg-inherit rounded"
+                value={fontSizeClass}
+                onChange={handleFontSizeChange}
+              >
+                <option value="text-xs">XS</option>
+                <option value="text-sm">SM</option>
+                <option value="text-md">MD</option>
+                <option value="text-lg">LG</option>
+                <option value="text-xl">XL</option>
+                <option value="text-2xl">2XL</option>
+                <option value="text-3xl">3XL</option>
+                <option value="text-4xl">4XL</option>
+              </select>
+            </div>
           </div>
         )}
+        </div>
 
         {/* Cek apakah ada konten (teks atau gambar) */}
         {(!viewChapter.isitext && !viewChapter.isigambar) ? (
@@ -472,7 +518,7 @@ const nextChapter = currentIndex < sortedChapters.length - 1 ? sortedChapters[cu
         ) : (
           <>
             {viewChapter.isitext && (
-              <div className={`tiptap-content px-2 ${fontSizeClass}`} dangerouslySetInnerHTML={createMarkup(viewChapter.isitext)} />
+              <div className={`tiptap-content transition-all duration-200 p-4 w-full rounded-xl ${fontSizeClass} ${readingMode ? 'bg-amber-50 shadow-xl dark:shadow-gray-800 text-amber-900' : ''}`} dangerouslySetInnerHTML={createMarkup(viewChapter.isitext)} />
             )}
             {viewChapter.isigambar && (
               <ImageBlock image={viewChapter.isigambar} alt={`Chapter ${viewChapter.chapter} - ${viewChapter.book.judul}`} />

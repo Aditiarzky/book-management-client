@@ -4,15 +4,13 @@ import type { IBook} from '@/types/core.types';
 import {useEffect, useState } from 'react';
 import { useTheme } from '@/context/ThemeContext';
 import { AlertCircle, RefreshCw } from 'lucide-react';
-
 interface DetailInterface{
   book: IBook | null;
 }
-
-const EmptyState = ({ title, description, icon: Icon = AlertCircle, onRefresh }: { 
-  title: string; 
-  description: string; 
-  icon?: React.ComponentType<{ className?: string }>; 
+const EmptyState = ({ title, description, icon: Icon = AlertCircle, onRefresh }: {
+  title: string;
+  description: string;
+  icon?: React.ComponentType<{ className?: string }>;
   onRefresh?: () => void;
 }) => (
   <div className="flex flex-col items-center justify-center p-8 text-center border border-dashed border-muted-foreground/30 rounded-lg bg-muted/20 h-full">
@@ -20,8 +18,8 @@ const EmptyState = ({ title, description, icon: Icon = AlertCircle, onRefresh }:
     <h3 className="text-lg font-medium text-muted-foreground mb-2">{title}</h3>
     <p className="text-sm text-muted-foreground/70 max-w-sm mb-4">{description}</p>
     {onRefresh && (
-      <button 
-        onClick={onRefresh} 
+      <button
+        onClick={onRefresh}
         className="flex items-center gap-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
       >
         <RefreshCw className="h-4 w-4" />
@@ -30,16 +28,12 @@ const EmptyState = ({ title, description, icon: Icon = AlertCircle, onRefresh }:
     )}
   </div>
 );
-
 function NavDetail({book}:DetailInterface) {
   const [showChapter, setShowChapter] = useState(true);
-
   const toggleChapter = () => {
     setShowChapter(!showChapter);
   };
-
   const [sortOrder, setSortOrder] = useState('');
-
   useEffect(() => {
     const savedSortOrder = localStorage.getItem('sortOrder');
     if (savedSortOrder) {
@@ -48,7 +42,6 @@ function NavDetail({book}:DetailInterface) {
       setSortOrder('ascending');
     }
   }, []);
-
   const handleSortOrderChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedSortOrder = event.target.value;
     setSortOrder(selectedSortOrder);
@@ -57,7 +50,6 @@ function NavDetail({book}:DetailInterface) {
   const createMarkup = (text:string) => {
     return { __html: text };
   };
-
   return(
     <div>
       <div className='flex justify-center'>
@@ -67,7 +59,7 @@ function NavDetail({book}:DetailInterface) {
       </ul>
       </div>
       {/* daftar chapter */}
-      
+     
       {showChapter && (
         book ? (
           <div className='flex items-center flex-col gap-3'>
@@ -80,10 +72,20 @@ function NavDetail({book}:DetailInterface) {
           </section>
           <section className=" gap-x-1.5 gap-y-3 flex flex-wrap justify-center" >
           {(book.chapters || []).sort((a, b) => {
+            const volA = a.volume ?? 0;
+            const volB = b.volume ?? 0;
+            const chapA = a.chapter;
+            const chapB = b.chapter;
             if (sortOrder === 'ascending') {
-              return a.chapter - b.chapter;
+              if (volA !== volB) {
+                return volA - volB;
+              }
+              return chapA - chapB;
             } else {
-              return b.chapter - a.chapter;
+              if (volA !== volB) {
+                return volB - volA;
+              }
+              return chapB - chapA;
             }
           }).map((chapter) => (
               <div className='drop-shadow-md'>
@@ -102,7 +104,7 @@ function NavDetail({book}:DetailInterface) {
           </section>
           </div>
         ) : (
-          <EmptyState 
+          <EmptyState
             title="No Book Data"
             description="We couldn't find any book information. Please try refreshing the page."
             onRefresh={() => window.location.reload()}
@@ -110,7 +112,7 @@ function NavDetail({book}:DetailInterface) {
         )
       )}
       {showChapter && book && (book.chapters || []).length === 0 && (
-        <EmptyState 
+        <EmptyState
           title="No Chapters Available"
           description="Chapters are coming soon. Please check back later or refresh the page."
           onRefresh={() => window.location.reload()}
@@ -175,7 +177,7 @@ function NavDetail({book}:DetailInterface) {
             </div>
           </section>
         ) : (
-          <EmptyState 
+          <EmptyState
             title="No Book Information"
             description="Book details are not available. Please try refreshing the page."
             onRefresh={() => window.location.reload()}
@@ -185,17 +187,14 @@ function NavDetail({book}:DetailInterface) {
     </div>
   )
 }
-
-
 export default function DetailComponent({book}:DetailInterface) {
   const { theme } = useTheme();
-  const disqusShortname = 'riztranslation-1'; 
+  const disqusShortname = 'riztranslation-1';
   const disqusConfig = {
       url: book ? `https://riztranslation.rf.gd/detail/${book.id}` : 'https://riztranslation.rf.gd/detail/unknown',
-      identifier: book ? `book-${book.id}` : 'book-unknown', 
-      title: book?.judul || "Unknown Title", 
+      identifier: book ? `book-${book.id}` : 'book-unknown',
+      title: book?.judul || "Unknown Title",
   };
-
   return (
     <div>
       <main className="transition-all w-full duration-500 min-h-dvh max-w-6xl mx-auto px-4">
@@ -217,13 +216,12 @@ export default function DetailComponent({book}:DetailInterface) {
               </div>
               </div>
             ) : (
-              <EmptyState 
+              <EmptyState
                 title="No Cover Available"
                 description="Book cover is not available. Please try refreshing the page."
                 onRefresh={() => window.location.reload()}
               />
             )}
-
             <div className="flex gap-1 items-center mt-3 flex-col">
               <h1 className="text-2xl text-center font-semibold">{book?.judul || 'Unknown Title'}</h1>
               <span className="text-center font-medium opacity-80">
@@ -244,7 +242,6 @@ export default function DetailComponent({book}:DetailInterface) {
                 )}
               </h1>
             </div>
-
             <NavDetail book={book}/>
           </section>
         </div>

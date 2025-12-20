@@ -319,9 +319,16 @@ export default function ChapterForm({ chapter, book, onSubmit, onCancel, loading
                 <Input
                   id="chapter"
                   type="number"
+                  step="0.1"
                   min="0"
+                  inputMode="decimal"
                   value={formData.chapter}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, chapter: Number.parseInt(e.target.value) || 0 }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      chapter: e.target.value === "" ? 0 : Number.parseFloat(e.target.value),
+                    }))
+                  }
                   required
                   className={formData.chapter >= 0 ? "" : "border-red-500"}
                 />
