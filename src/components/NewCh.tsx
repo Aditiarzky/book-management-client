@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router';
 import { DETAIL_PAGE, VIEW_PAGE } from '@/routes/constants';
 import { formatDate, formatDistanceToNow, isWithinOneMonth, isWithinOneWeek } from '../utils/format';
+import noImage from '@/placeholder.gif';
 
 interface ChapterMixBook {
   type?: number;
@@ -34,7 +35,7 @@ const NewCh = ({ tipe, judul, chapter, nama, created_at, cover, thumbnail, volum
     <main>
       <div
         title={judul}
-        className="flex space-x-2 cursor-pointer items-center hov-b drop-shadow-md"
+        className="flex space-x-2 cursor-pointer items-center hov-b drop-shadow-sm"
       >
         <Link to={DETAIL_PAGE} params={{id:`${bookId}`}} key={bookId}>
           <div
@@ -47,7 +48,7 @@ const NewCh = ({ tipe, judul, chapter, nama, created_at, cover, thumbnail, volum
             <span className="text-xs">{tipe}</span>
             <h1 className="font-semibold text-md line-clamp-2 wrap-break-word">{judul}</h1>
             <Ch
-              thumbnail={thumbnail}
+              thumbnail={thumbnail || noImage}
               id={id}
               bookId={bookId}
               chapter={chapter}
@@ -80,7 +81,7 @@ export const Ch = ({ thumbnail, chapter, volume, nama, created_at, bookId, id, t
     return (
       <Link to={VIEW_PAGE} params={{bookId: bookId.toString(),id: id.toString()}} key={id} className="w-fit">
         <div
-          style={{ backgroundImage: `url(${thumbnail})` }}
+          style={{ backgroundImage: `url(${thumbnail || noImage})` }}
           className="w-fit rounded-lg hov-b bg-no-repeat bg-cover"
         >
           <div className="flex h-24 p-1 flex-col text-white justify-end w-36 rounded-lg bg-gradient-to-t from-gray-900/70">

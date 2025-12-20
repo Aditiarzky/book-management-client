@@ -7,7 +7,7 @@ import { setMetaTags } from "@/utils/meta";
 
 export default function Home() {
   const { fetchBooks } = useBookStore();
-  const { fetchChapters } = useChapterStore();
+  const { fetchLatestChapters } = useChapterStore();
 
   useEffect(()=>{
      setMetaTags({
@@ -20,11 +20,11 @@ export default function Home() {
 
   useEffect(() => {
     const loadInitialData = async () => {
-      await Promise.all([fetchBooks(), fetchChapters()]);
+      await Promise.all([fetchBooks(), fetchLatestChapters()]);
     };
 
     loadInitialData();
-  }, [fetchBooks, fetchChapters]);
+  }, [fetchBooks, fetchLatestChapters]);
 
   return (
     <GuestLayout>

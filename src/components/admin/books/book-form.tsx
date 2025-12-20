@@ -235,6 +235,7 @@ export default function BookForm({ book, onSubmit, onCancel, loading }: BookForm
                 <SelectContent>
                   <SelectItem value="Manga">Manga</SelectItem>
                   <SelectItem value="Web Manga">Web Manga</SelectItem>
+                  <SelectItem value="Web Novel">Web Novel</SelectItem>
                   <SelectItem value="Light Novel">Light Novel</SelectItem>
                   <SelectItem value="Novel">Novel</SelectItem>
                 </SelectContent>

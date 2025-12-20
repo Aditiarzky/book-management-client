@@ -69,7 +69,7 @@ const TiptapEditor = ({ content, onChange }: TiptapEditorProps) => {
         toast.error('Gagal mengunggah gambar');
       }
     } catch (error) {
-      toast.error('Terjadi kesalahan saat mengunggah');
+      toast.error('Terjadi kesalahan saat mengunggah:'+error);
     } finally {
       setProgressBar(0);
     }
@@ -121,8 +121,8 @@ const TiptapEditor = ({ content, onChange }: TiptapEditorProps) => {
           .tiptap-editor-content p {
             margin: 1.2em 0; /* Clear separation between paragraphs */
             min-height: 1.5em; /* Visible height for empty paragraphs */
-            line-height: 1.6; /* Improved readability */
-            text-indent: 2em; /* Novel-like first-line indentation */
+            line-height: 1.5; /* Improved readability */
+            text-indent: 1em; /* Novel-like first-line indentation */
           }
           .tiptap-editor-content p:empty {
             text-indent: 0; /* No indentation for empty paragraphs */

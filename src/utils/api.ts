@@ -166,6 +166,15 @@ export async function getChapters(page = 1, limit = 10) {
   }
 }
 
+export async function getLatestChapters(page = 1, limit = 10) {
+  try {
+    const res = await api.get(`/chapters/latest?page=${page}&limit=${limit}`);
+    return res.data;
+  } catch (error) {
+    return { success: false, message: getErrorMessage(error) };
+  }
+}
+
 export async function getChapterById(id:number, bookId: number) {
   try {
     const res = await api.get(`/chapters/${id}?bookId=${bookId}`);

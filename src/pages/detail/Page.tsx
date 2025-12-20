@@ -14,7 +14,7 @@ export default function Detail() {
 
   useEffect(() => {
     fetchBookById(parseId);
-  }, [fetchBookById]);
+  }, [fetchBookById, parseId]);
 
   useEffect(()=>{
     if(detailBook && !loadingBook){

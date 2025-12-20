@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { toast } from "sonner"; // Impor Navigate untuk redirect
@@ -87,7 +88,7 @@ export default function AdminPage() {
       setShowBookForm(false);
       setEditingBook(null);
     } catch (error) {
-      toast.error("Failed to save book");
+      toast.error("Failed to save book: "+error);
     }
   };
 
@@ -95,7 +96,7 @@ export default function AdminPage() {
     try {
       await removeBook(id);
     } catch (error) {
-      toast.error("Failed to delete book");
+      toast.error("Failed to delete book: "+error);
     }
   };
 
@@ -129,7 +130,7 @@ export default function AdminPage() {
         fetchByBook(selectedBook.id);
       }
     } catch (error) {
-      toast.error("Failed to save chapter");
+      toast.error("Failed to save chapter: "+error);
     }
   };
 
@@ -140,7 +141,7 @@ export default function AdminPage() {
         fetchByBook(selectedBook.id);
       }
     } catch (error) {
-      toast.error("Failed to delete chapter");
+      toast.error("Failed to delete chapter: "+error);
     }
   };
 
@@ -170,7 +171,7 @@ export default function AdminPage() {
       setShowGenreForm(false);
       setEditingGenre(null);
     } catch (error) {
-      toast.error("Failed to save genre");
+      toast.error("Failed to save genre: "+error);
     }
   };
 
@@ -178,7 +179,7 @@ export default function AdminPage() {
     try {
       await removeGenre(id);
     } catch (error) {
-      toast.error("Failed to delete genre");
+      toast.error("Failed to delete genre: "+error);
     }
   };
 

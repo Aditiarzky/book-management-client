@@ -1,4 +1,5 @@
-import { BookOpenText, Loader2, PanelTop } from "lucide-react";
+// HomeComponent.tsx
+import { BookOpenText, PanelTop, AlertCircle, RefreshCw, Loader } from "lucide-react";
 import type {IChapter } from '../../types/core.types';
 import { KontenCard } from '../../components/Card';
 import useChapterStore from '../../store/useChapterStore';
@@ -6,6 +7,7 @@ import useBookStore from '../../store/useBookStore';
 import NewCh from "../../components/NewCh";
 import Sekeleton from "../../components/Sekeleton";
 import { Button } from "@/components/ui/button";
+import { useEffect } from 'react';
 
 const FbPage = () => {
   return (
@@ -53,8 +55,31 @@ export const ChapterCardSkeleton = () => {
   );
 };
 
+export const EmptyState = ({ title, description, icon: Icon = AlertCircle, onRefresh }: { 
+  title: string; 
+  description: string; 
+  icon?: React.ComponentType<{ className?: string }>; 
+  onRefresh?: () => void;
+}) => (
+  <div className="flex flex-col items-center justify-center p-8 text-center border border-dashed border-muted-foreground/30 rounded-lg bg-muted/20 h-full">
+    <Icon className="h-12 w-12 text-muted-foreground mb-4" />
+    <h3 className="text-lg font-medium text-muted-foreground mb-2">{title}</h3>
+    <p className="text-sm text-muted-foreground/70 max-w-sm mb-4">{description}</p>
+    {onRefresh && (
+      <button 
+        onClick={onRefresh} 
+        className="flex items-center gap-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
+      >
+        <RefreshCw className="h-4 w-4" />
+        Refresh Page
+      </button>
+    )}
+  </div>
+);
+
 export const ChCorner = ({ chapters, loading }: { chapters: IChapter[]; loading:boolean }) => {
-  const { meta, isLoadingNextPage, loadMoreChapters } = useChapterStore();
+  const { meta, isLoadingNextPage, loadMoreLatestChapters:loadMoreChapters } = useChapterStore();
+  const safeMeta = meta || { total: 0, page: 1, limit: 10, totalPages: 1 };
 
   return (
     <article className="p-5 w-full">
@@ -64,7 +89,13 @@ export const ChCorner = ({ chapters, loading }: { chapters: IChapter[]; loading:
             <ChapterCardSkeleton key={`chSekeleton-${i}`}/>
           ))}
         </div>
-    ):(
+    ) : chapters.length === 0 ? (
+      <EmptyState 
+        title="No Chapters Available"
+        description="No latest chapters found. Please try refreshing the page."
+        onRefresh={() => window.location.reload()}
+      />
+    ) : (
       <div className="grid grid-cols-[repeat(auto-fill,_minmax(250px,_1fr))] gap-2 w-full">
         {chapters.map((chapter) => (
           <NewCh
@@ -86,14 +117,14 @@ export const ChCorner = ({ chapters, loading }: { chapters: IChapter[]; loading:
         ))}
       </div>
     )}
-      {meta.page < meta.totalPages && (
+      {safeMeta.page < safeMeta.totalPages && (
         <div className="flex justify-center mt-4">
           <Button
             variant="outline"
             onClick={loadMoreChapters}
             disabled={isLoadingNextPage}
           >
-            {isLoadingNextPage ? <Loader2 className="animate-spin"/> : 'Load More'}
+            {isLoadingNextPage ? <Loader className="animate-spin"/> : 'Load More'}
           </Button>
         </div>
       )}
@@ -102,9 +133,19 @@ export const ChCorner = ({ chapters, loading }: { chapters: IChapter[]; loading:
 };
 
 export default function HomeComponent() {
+  const {latestChapters:chapters, loading: loadingCh, fetchLatestChapters, resetChaptersState} = useChapterStore();
+  const {books, loading: loadingBook, isLoadingNextPage, meta, loadMoreBooks, fetchBooks, resetBooksState} = useBookStore();
 
-  const {chapters, loading: loadingCh} = useChapterStore();
-  const {books, loading: loadingBook, isLoadingNextPage, meta, loadMoreBooks} = useBookStore();
+  // Tambahkan useEffect untuk fetch data saat komponen dimount
+  useEffect(() => {
+    // Reset state dan fetch data buku
+    resetBooksState();
+    fetchBooks(1, 10, false);
+    
+    // Reset state dan fetch data chapter
+    resetChaptersState();
+    fetchLatestChapters(1, 10, false);
+  }, [fetchBooks, fetchLatestChapters, resetBooksState, resetChaptersState]);
 
   return (
     <div>
@@ -118,7 +159,7 @@ export default function HomeComponent() {
             <h1 className="text-2xl px-3 font-semibold flex items-center gap-2"><BookOpenText/> Latest Chapter</h1>
           </div>
           <section className="flex flex-wrap md:flex-nowrap">
-            <ChCorner loading={loadingCh} chapters={chapters}/>
+            <ChCorner loading={loadingCh} chapters={chapters || []}/>
           </section>
           <div className="w-full">
             <h1 className="text-2xl px-3 items-center flex gap-2 font-semibold"><PanelTop/> Facebook Page</h1>

@@ -109,6 +109,7 @@ export default function ChapterForm({ chapter, book, onSubmit, onCancel, loading
 
   useEffect(() => {
     if (chapter) {
+      // MODE EDIT: Jika ada data chapter, gunakan data itu untuk mengisi form
       let parsedImages: string[] = [];
 
       if (Array.isArray(chapter.isigambar)) {
@@ -122,13 +123,14 @@ export default function ChapterForm({ chapter, book, onSubmit, onCancel, loading
             parsedImages = chapter.isigambar.split(",").map((url) => url.trim().replace(/^"|"$/g, ""));
           }
         } catch (err) {
+          console.log(err)
           parsedImages = chapter.isigambar.split(",").map((url) => url.trim().replace(/^"|"$/g, ""));
         }
       }
 
       setFormData({
         bookId: chapter.bookId,
-        chapter: chapter.chapter,
+        chapter: chapter.chapter, // Gunakan nomor chapter yang ada
         volume: chapter.volume,
         nama: chapter.nama || "",
         thumbnail: chapter.thumbnail || "",
@@ -136,7 +138,32 @@ export default function ChapterForm({ chapter, book, onSubmit, onCancel, loading
         isitext: chapter.isitext || "",
       });
     } else if (book) {
-      setFormData((prev) => ({ ...prev, bookId: book.id }));
+      // MODE TAMBAH BARU: Jika tidak ada data chapter, hitung nomor chapter berikutnya
+
+      // --- AWAL PERUBAAN ---
+      // 1. Tentukan nomor chapter default
+      let nextChapterNumber = 1;
+
+      // 2. Pastikan book.chapters ada dan merupakan array
+      if (book.chapters && Array.isArray(book.chapters) && book.chapters.length > 0) {
+        // 3. Cari nomor chapter tertinggi dari array chapter yang ada
+        const highestChapter = book.chapters.reduce((max, ch) => {
+          // Pastikan ch.chapter adalah angka untuk perbandingan yang valid
+          const chapterNum = Number(ch.chapter);
+          return chapterNum > max ? chapterNum : max;
+        }, 0); // Mulai dari 0
+
+        // 4. Nomor chapter baru adalah nomor tertinggi + 1
+        nextChapterNumber = highestChapter + 1;
+      }
+      // --- AKHIR PERUBAAN ---
+
+      // Set data form dengan bookId dan nomor chapter yang sudah dihitung
+      setFormData((prev) => ({
+        ...prev,
+        bookId: book.id,
+        chapter: nextChapterNumber, // Gunakan nomor yang sudah dihitung
+      }));
     }
   }, [chapter, book]);
 
@@ -148,11 +175,16 @@ export default function ChapterForm({ chapter, book, onSubmit, onCancel, loading
     }
 
     // Ambil thumbnail dari isigambar jika kosong
-    const thumbnail = formData.thumbnail?.trim();
-    const fallbackThumbnail =
-      (!thumbnail || thumbnail === "") && formData.isigambar.length > 0
-        ? formData.isigambar[Math.floor(Math.random() * formData.isigambar.length)]
-        : thumbnail;
+    const thumbnail = formData.thumbnail?.trim() || "";
+    let fallbackThumbnail = thumbnail;
+
+    if (!fallbackThumbnail) {
+      fallbackThumbnail = book?.cover || "";
+    }
+
+    if (!fallbackThumbnail && formData.isigambar.length > 0) {
+      fallbackThumbnail = formData.isigambar[Math.floor(Math.random() * formData.isigambar.length)];
+    }
 
     const submitData: IChapterCreateInput | IChapterUpdateInput = {
       ...formData,

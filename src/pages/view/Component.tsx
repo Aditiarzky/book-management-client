@@ -1,6 +1,7 @@
+/* eslint-disable no-constant-binary-expression */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate} from '@tanstack/react-router';
-import { ALargeSmall, ChevronLeft, ChevronRight, CloudAlert, LibraryBig } from 'lucide-react';
+import { ALargeSmall, ChevronLeft, ChevronRight, CloudAlert, LibraryBig, RefreshCw, Home } from 'lucide-react';
 import { DiscussionEmbed } from 'disqus-react';
 import { useTheme } from '@/context/ThemeContext';
 import type { IBook, IChapter } from '@/types/core.types';
@@ -8,6 +9,54 @@ import { DETAIL_PAGE, VIEW_PAGE } from '@/routes/constants';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
+
+// Komponen Empty State untuk Chapter
+const EmptyChapterState = ({ onRefresh, onGoHome }: { 
+  onRefresh?: () => void; 
+  onGoHome?: () => void;
+}) => (
+  <div className="flex flex-col items-center justify-center min-h-[50vh] p-8 text-center">
+    <CloudAlert className="h-16 w-16 text-muted-foreground mb-4" />
+    <h2 className="text-2xl font-semibold text-muted-foreground mb-2">Chapter Tidak Ditemukan</h2>
+    <p className="text-muted-foreground mb-6 max-w-md">
+      Chapter yang Anda cari tidak tersedia atau telah dihapus. Silakan coba chapter lain atau kembali ke halaman utama.
+    </p>
+    <div className="flex gap-3">
+      {onRefresh && (
+        <Button onClick={onRefresh} variant="outline" className="flex items-center gap-2">
+          <RefreshCw className="h-4 w-4" />
+          Refresh Halaman
+        </Button>
+      )}
+      {onGoHome && (
+        <Button onClick={onGoHome} className="flex items-center gap-2">
+          <Home className="h-4 w-4" />
+          Kembali ke Beranda
+        </Button>
+      )}
+    </div>
+  </div>
+);
+
+// Komponen Empty State untuk Konten Chapter
+const EmptyContentState = ({ chapterName, onRefresh }: { 
+  chapterName: string;
+  onRefresh?: () => void;
+}) => (
+  <div className="flex flex-col items-center justify-center min-h-[30vh] p-8 text-center">
+    <CloudAlert className="h-12 w-12 text-muted-foreground mb-4" />
+    <h3 className="text-xl font-semibold text-muted-foreground mb-2">Konten Tidak Tersedia</h3>
+    <p className="text-muted-foreground mb-4 max-w-md">
+      Konten untuk {chapterName} tidak tersedia. Mungkin masih dalam proses penerjemahan atau ada masalah teknis.
+    </p>
+    {onRefresh && (
+      <Button onClick={onRefresh} variant="outline" className="flex items-center gap-2">
+        <RefreshCw className="h-4 w-4" />
+        Coba Lagi
+      </Button>
+    )}
+  </div>
+);
 
 interface NavChInterface{
   chapter: IChapter | null;
@@ -187,6 +236,10 @@ function NavCh({ chapter, konten, prevChapter, listCh, nextChapter}:NavChInterfa
     }
   };
 
+  // Jika tidak ada chapter, tidak tampilkan navigasi
+  if (!chapter) {
+    return null;
+  }
 
   return (
     <div>
@@ -236,6 +289,7 @@ export default function ViewComponent(
   {viewChapter:IChapter|null, chapterByBook:IChapter[]}) {
   const [fontSizeClass, setFontSizeClass] = useState('');
   const { theme } = useTheme();
+  const navigate = useNavigate();
   
   const disqusShortname = 'riztranslation-1'; 
   const disqusConfig = {
@@ -249,7 +303,7 @@ export default function ViewComponent(
     setFontSizeClass(savedFontSize || 'text-md');
   }, []);
 
-  const handleFontSizeChange = (event: { target: { value: any; }; }) => {
+  const handleFontSizeChange = (event: { target: { value: string; }; }) => {
     const selectedFontSize = event.target.value;
     setFontSizeClass(selectedFontSize);
     localStorage.setItem('fontSize', selectedFontSize);
@@ -259,8 +313,17 @@ export default function ViewComponent(
     return { __html: text };
   };
 
+  const handleRefresh = () => {
+    window.location.reload();
+  };
+
+  const handleGoHome = () => {
+    navigate({ to: '/' });
+  };
+
+  // Jika tidak ada viewChapter, tampilkan empty state
   if (!viewChapter) {
-    return <div className='w-full flex justify-center items-center h-dvh'>No Data<CloudAlert className='w-20'/></div>;
+    return <EmptyChapterState onRefresh={handleRefresh} onGoHome={handleGoHome} />;
   }
 
 const sortedChapters = [...chapterByBook].sort((a, b) => a.chapter - b.chapter);
@@ -270,6 +333,7 @@ const nextChapter = currentIndex < sortedChapters.length - 1 ? sortedChapters[cu
 
   return (
     <div key={viewChapter?.id}>
+      {/* style untuk isi teks */}
       <style>
         {`
           .tiptap-content {
@@ -290,8 +354,8 @@ const nextChapter = currentIndex < sortedChapters.length - 1 ? sortedChapters[cu
           .tiptap-content p {
             margin: 1.2em 0; /* Clear separation between paragraphs */
             min-height: 1.5em; /* Visible height for empty paragraphs */
-            line-height: 1.6; /* Improved readability */
-            text-indent: 2em; /* Novel-like first-line indentation */
+            line-height: 1.5; /* Improved readability */
+            text-indent: 1em; /* Novel-like first-line indentation */
           }
           .tiptap-content p:empty {
             text-indent: 0; /* No indentation for empty paragraphs */
@@ -399,11 +463,21 @@ const nextChapter = currentIndex < sortedChapters.length - 1 ? sortedChapters[cu
           </div>
         )}
 
-        {viewChapter.isitext && (
-          <div className={`tiptap-content px-2 ${fontSizeClass}`} dangerouslySetInnerHTML={createMarkup(viewChapter.isitext)} />
-        )}
-        {viewChapter.isigambar && (
-          <ImageBlock image={viewChapter.isigambar} alt={`Chapter ${viewChapter.chapter} - ${viewChapter.book.judul}`} />
+        {/* Cek apakah ada konten (teks atau gambar) */}
+        {(!viewChapter.isitext && !viewChapter.isigambar) ? (
+          <EmptyContentState 
+            chapterName={`Chapter ${viewChapter.chapter}${viewChapter.nama ? ` - ${viewChapter.nama}` : ''}`}
+            onRefresh={handleRefresh}
+          />
+        ) : (
+          <>
+            {viewChapter.isitext && (
+              <div className={`tiptap-content px-2 ${fontSizeClass}`} dangerouslySetInnerHTML={createMarkup(viewChapter.isitext)} />
+            )}
+            {viewChapter.isigambar && (
+              <ImageBlock image={viewChapter.isigambar} alt={`Chapter ${viewChapter.chapter} - ${viewChapter.book.judul}`} />
+            )}
+          </>
         )}
       </main>
       <section className="w-full max-w-6xl mx-auto px-2 py-10 dark:text-white text-black min-h-96">

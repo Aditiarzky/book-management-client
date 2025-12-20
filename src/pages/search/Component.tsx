@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Loader2, BookOpen } from "lucide-react";
+import { Loader, BookOpen, Search, RefreshCw, Home, Filter } from "lucide-react";
 import useBookStore from "@/store/useBookStore";
 import type { SearchFiltersType } from "@/components/SearchFilter";
 import SearchFilters from "@/components/SearchFilter";
@@ -9,6 +9,86 @@ import { Button } from "@/components/ui/button";
 import { useDebounce } from "use-debounce";
 import { setMetaTags } from "@/utils/meta";
 
+// Komponen Skeleton untuk loading state
+const BookCardSkeleton = () => (
+  <div className="bg-white rounded-lg shadow-md overflow-hidden animate-pulse">
+    <div className="h-64 bg-gray-200"></div>
+    <div className="p-4">
+      <div className="h-4 bg-gray-200 rounded mb-2"></div>
+      <div className="h-3 bg-gray-200 rounded w-3/4"></div>
+    </div>
+  </div>
+);
+
+// Komponen Empty State untuk hasil pencarian
+const EmptySearchState = ({ 
+  searchQuery, 
+  onResetFilters, 
+  onGoHome 
+}: { 
+  searchQuery: string; 
+  onResetFilters?: () => void; 
+  onGoHome?: () => void;
+}) => (
+  <div className="flex flex-col items-center justify-center py-12 text-center">
+    <div className="bg-gray-100 p-6 rounded-full w-24 h-24 mx-auto mb-6 flex items-center justify-center">
+      <Search className="w-12 h-12 text-gray-400" />
+    </div>
+    <h3 className="text-2xl font-semibold mb-2 text-gray-800">No Results Found</h3>
+    <p className="text-gray-600 mb-6 max-w-md mx-auto">
+      We couldn't find any books matching "<span className="font-medium">{searchQuery}</span>"
+    </p>
+    
+    <div className="bg-blue-50 p-4 rounded-lg mb-6 max-w-md mx-auto">
+      <p className="text-sm text-blue-800 font-medium mb-2">💡 Search tips:</p>
+      <ul className="text-sm text-blue-700 space-y-1 text-left">
+        <li>• Use more general keywords</li>
+        <li>• Check the spelling of keywords</li>
+        <li>• Try different filter combinations</li>
+        <li>• Use fewer filters to broaden your search</li>
+      </ul>
+    </div>
+    
+    <div className="flex gap-3">
+      {onResetFilters && (
+        <Button onClick={onResetFilters} variant="outline" className="flex items-center gap-2">
+          <Filter className="h-4 w-4" />
+          Reset Filters
+        </Button>
+      )}
+      {onGoHome && (
+        <Button onClick={onGoHome} className="flex items-center gap-2">
+          <Home className="h-4 w-4" />
+          Browse All Books
+        </Button>
+      )}
+    </div>
+  </div>
+);
+
+// Komponen Empty State untuk halaman pencarian sebelum melakukan pencarian
+const InitialSearchState = () => (
+  <div className="flex flex-col items-center justify-center py-12 text-center">
+    <div className="bg-gray-100 p-6 rounded-full w-24 h-24 mx-auto mb-6 flex items-center justify-center">
+      <Search className="w-12 h-12 text-gray-400" />
+    </div>
+    <h3 className="text-2xl font-semibold mb-2 text-gray-800">Search for Books</h3>
+    <p className="text-gray-600 mb-6 max-w-md mx-auto">
+      Use the search bar and filters above to find books you're interested in.
+    </p>
+    
+    <div className="bg-blue-50 p-4 rounded-lg mb-6 max-w-md mx-auto">
+      <p className="text-sm text-blue-800 font-medium mb-2">🔍 What can you search for?</p>
+      <ul className="text-sm text-blue-700 space-y-1 text-left">
+        <li>• Book titles and authors</li>
+        <li>• Specific genres or categories</li>
+        <li>• Creators or translators</li>
+        <li>• Keywords related to the content</li>
+      </ul>
+    </div>
+  </div>
+);
+
 export default function SearchPage() {
   const { searchResults, loading, isLoadingNextSearch, searchMeta, searchBook, loadMoreSearch } = useBookStore();
   const [hasSearched, setHasSearched] = useState(false);
@@ -17,16 +97,32 @@ export default function SearchPage() {
     creator: "",
     genreIds: [],
   });
-  const [debouncedFilters] = useDebounce(filters, 500); // Debounce filters
+  const [debouncedFilters] = useDebounce(filters, 500);
   const navigate = useNavigate();
+
+  // 🔥 PERBAIKAN UTAMA: Pastikan `searchResults` selalu sebuah array
+  // Jika `searchResults` dari store adalah `undefined`, gunakan array kosong `[]` sebagai gantinya.
+  const results = searchResults || [];
 
   const handleSearch = async (newFilters: SearchFiltersType) => {
     setHasSearched(true);
     setFilters(newFilters);
   };
 
+  const handleResetFilters = () => {
+    setFilters({
+      searchQuery: "",
+      creator: "",
+      genreIds: [],
+    });
+    setHasSearched(false);
+  };
+
+  const handleGoHome = () => {
+    navigate({ to: "/" });
+  };
+
   useEffect(() => {
-    // Perform search when debounced filters change
     searchBook(
       debouncedFilters.searchQuery || undefined,
       1,
@@ -35,10 +131,9 @@ export default function SearchPage() {
       debouncedFilters.genreIds.length > 0 ? debouncedFilters.genreIds : undefined,
       false
     );
-  }, [debouncedFilters]);
+  }, [debouncedFilters, searchBook]);
 
   useEffect(() => {
-    // Set meta tags for SEO
     if (!loading) {
       setMetaTags({
         title: `Search ${debouncedFilters.searchQuery || 'Book'} | Riztranslation`,
@@ -49,7 +144,8 @@ export default function SearchPage() {
     }
   }, [debouncedFilters, loading]);
 
-  const canLoadMore = searchMeta.page < searchMeta.totalPages;
+  // 🔥 PERBAIKAN: Tambahkan pengecekan untuk `searchMeta` agar aman
+  const canLoadMore = searchMeta && searchMeta.page < searchMeta.totalPages;
 
   return (
     <div className="min-h-screen">
@@ -59,25 +155,39 @@ export default function SearchPage() {
           {loading && !isLoadingNextSearch ? (
             <div className="flex items-center justify-center py-12">
               <div className="text-center">
-                <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600" />
+                <Loader className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600" />
                 <p className="text-gray-600">Searching for books...</p>
               </div>
             </div>
           ) : (
             <>
               {hasSearched && (
-                <div className="flex items-center gap-2 mb-6">
-                  <BookOpen className="w-5 h-5 text-gray-500" />
-                  <span className="text-gray-600">
-                    {searchResults.length > 0 ? `Found ${searchResults.length} books` : "No books found"}
-                  </span>
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-2">
+                    <BookOpen className="w-5 h-5 text-gray-500" />
+                    {/* 🔥 PERBAIKAN: Gunakan variabel `results` yang sudah aman */}
+                    <span className="text-gray-600">
+                      {results.length > 0 ? `Found ${results.length} books` : "No books found"}
+                    </span>
+                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={handleResetFilters}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    <RefreshCw className="w-4 h-4 mr-1" />
+                    Reset
+                  </Button>
                 </div>
               )}
 
-              {searchResults.length > 0 ? (
+              {/* 🔥 PERBAIKAN: Gunakan variabel `results` yang sudah aman */}
+              {results.length > 0 ? (
                 <>
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-                    {searchResults.map((book) => (
+                    {/* 🔥 PERBAIKAN: Gunakan variabel `results` yang sudah aman */}
+                    {results.map((book) => (
                       <BookCard
                         key={book.id}
                         book={book}
@@ -87,6 +197,15 @@ export default function SearchPage() {
                       />
                     ))}
                   </div>
+                  
+                  {isLoadingNextSearch && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 mt-6">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <BookCardSkeleton key={`skeleton-${i}`} />
+                      ))}
+                    </div>
+                  )}
+                  
                   {canLoadMore && (
                     <div className="text-center mt-6">
                       <Button
@@ -101,7 +220,7 @@ export default function SearchPage() {
                         disabled={isLoadingNextSearch}
                       >
                         {isLoadingNextSearch ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <Loader className="h-4 w-4 animate-spin" />
                         ) : (
                           "Load More"
                         )}
@@ -110,24 +229,14 @@ export default function SearchPage() {
                   )}
                 </>
               ) : hasSearched ? (
-                <div className="text-center py-12">
-                  <div className="bg-gray-100 p-6 rounded-full w-24 h-24 mx-auto mb-4 flex items-center justify-center">
-                    <BookOpen className="w-12 h-12 text-gray-400" />
-                  </div>
-                  <h3 className="text-xl font-semibold mb-2">No books found</h3>
-                  <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                    Try changing the search keywords or filters you are using.
-                  </p>
-                  <div className="space-y-2 text-sm text-gray-500">
-                    <p>💡 Search tips:</p>
-                    <ul className="list-disc list-inside space-y-1 max-w-md mx-auto">
-                      <li>Use more general keywords</li>
-                      <li>Check the spelling of keywords</li>
-                      <li>Try different filter combinations</li>
-                    </ul>
-                  </div>
-                </div>
-              ) : null}
+                <EmptySearchState 
+                  searchQuery={filters.searchQuery || "your search"} 
+                  onResetFilters={handleResetFilters}
+                  onGoHome={handleGoHome}
+                />
+              ) : (
+                <InitialSearchState />
+              )}
             </>
           )}
         </div>

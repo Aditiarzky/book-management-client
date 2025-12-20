@@ -1,48 +1,60 @@
+// useChapterStore.ts
 import { create } from 'zustand';
 import { toast } from 'sonner';
-import { createChapter, deleteChapter, getChapterByBookId, getChapterById, getChapters, updateChapter } from '../utils/api';
+import { createChapter, deleteChapter, getChapterByBookId, getChapterById, getChapters, getLatestChapters, updateChapter } from '../utils/api';
 import getErrorMessage from '../utils/error';
 import type { IChapter, IMeta } from '../types/core.types';
 
 export interface ChapterStore {
   chapters: IChapter[];
+  latestChapters: IChapter[];
   viewChapter: IChapter | null;
   chapterByBook: IChapter[];
   meta: IMeta;
   loading: boolean;
   isLoadingNextPage: boolean;
   cache: {
-    chapters: { [key: string]: { data: IChapter[]; timestamp: number } };
+    chapters: { [key: string]: { data: IChapter[]; meta: IMeta; timestamp: number } };
+    latestChapters: { [key: string]: { data: IChapter[]; meta: IMeta; timestamp: number } };
     viewChapter: { [key: string]: { data: IChapter; timestamp: number } };
     chapterByBook: { [key: string]: { data: IChapter[]; timestamp: number } };
   };
   fetchChapters: (page?: number, limit?: number, isLoadMore?: boolean) => Promise<void>;
+  fetchLatestChapters: (page?: number, limit?: number, isLoadMore?: boolean) => Promise<void>;
   loadMoreChapters: () => Promise<void>;
+  loadMoreLatestChapters: () => Promise<void>;
   addChapter: (data: IChapter) => Promise<void>;
   fetchViewChapter: (id: number, bookId: number) => Promise<void>;
   fetchByBook: (bookId: number) => Promise<void>;
   editChapter: (id: number, data: IChapter) => Promise<void>;
   removeChapter: (id: number) => Promise<void>;
+  resetChaptersState: () => void; // Tambahkan fungsi reset
 }
 
 const CACHE_DURATION = 5 * 60 * 1000; 
 
 const useChapterStore = create<ChapterStore>((set, get) => ({
   chapters: [],
+  latestChapters: [],
   viewChapter: null,
   chapterByBook: [],
   meta: { total: 0, page: 1, limit: 10, totalPages: 1 },
   loading: false,
   isLoadingNextPage: false,
-  cache: { viewChapter: {}, chapterByBook: {}, chapters: {} },
+  cache: { 
+    viewChapter: {},
+    chapterByBook: {},
+    chapters: {},
+    latestChapters: {} 
+  },
 
   fetchChapters: async (page = 1, limit = 10, isLoadMore = false) => {
     const cacheKey = `${page}-${limit}`;
     const cached = get().cache.chapters[cacheKey];
     const now = Date.now();
 
-    if (cached && now - cached.timestamp < CACHE_DURATION) {
-      set({ chapters: cached.data, loading: false });
+    if (cached && now - cached.timestamp < CACHE_DURATION && !isLoadMore) {
+      set({ chapters: cached.data, meta: cached.meta, loading: false });
       return;
     }
     
@@ -64,7 +76,51 @@ const useChapterStore = create<ChapterStore>((set, get) => ({
           ...get().cache,
           chapters: {
             ...get().cache.chapters,
-            [cacheKey]: { data, timestamp: now },
+            [cacheKey]: { data: page === 1 ? data : [...state.chapters, ...data], meta, timestamp: now },
+          },
+        },
+      }));
+    } catch (error) {
+      const message = getErrorMessage(error);
+      toast.error(message);
+    } finally {
+      if (isLoadMore) {
+        set({ isLoadingNextPage: false });
+      } else {
+        set({ loading: false });
+      }
+    }
+  },
+
+  fetchLatestChapters: async (page = 1, limit = 10, isLoadMore = false) => {
+    const cacheKey = `${page}-${limit}`;
+    const cached = get().cache.latestChapters[cacheKey];
+    const now = Date.now();
+
+    if (cached && now - cached.timestamp < CACHE_DURATION && !isLoadMore) {
+      set({ latestChapters: cached.data, meta: cached.meta, loading: false });
+      return;
+    }
+    
+
+    if (isLoadMore) {
+      set({ isLoadingNextPage: true });
+    } else {
+      set({ loading: true });
+    }
+
+    try {
+      const response = await getLatestChapters(page, limit);
+      const { data, meta } = response;
+
+      set((state) => ({
+        latestChapters: page === 1 ? data : [...state.latestChapters, ...data],
+        meta,
+        cache: {
+          ...get().cache,
+          latestChapters: {
+            ...get().cache.latestChapters,
+            [cacheKey]: { data: page === 1 ? data : [...state.latestChapters, ...data], meta, timestamp: now },
           },
         },
       }));
@@ -86,6 +142,14 @@ const useChapterStore = create<ChapterStore>((set, get) => ({
 
     const nextPage = page + 1;
     await get().fetchChapters(nextPage, 10, true);
+  },
+
+  loadMoreLatestChapters: async () => {
+    const { page, totalPages } = get().meta;
+    if (page >= totalPages) return;
+
+    const nextPage = page + 1;
+    await get().fetchLatestChapters(nextPage, 10, true);
   },
 
   addChapter: async (data) => {
@@ -275,6 +339,16 @@ const useChapterStore = create<ChapterStore>((set, get) => ({
     } finally {
       set({ loading: false });
     }
+  },
+
+  // Tambahkan fungsi reset
+  resetChaptersState: () => {
+    set({
+      latestChapters: [],
+      meta: { total: 0, page: 1, limit: 10, totalPages: 1 },
+      loading: false,
+      isLoadingNextPage: false,
+    });
   },
 }));
 

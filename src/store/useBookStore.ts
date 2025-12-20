@@ -1,3 +1,4 @@
+// useBookStore.ts
 import { create } from 'zustand';
 import { toast } from 'sonner';
 import { createBook, deleteBook, getBookById, getBooks, searchBooks, updateBook } from '../utils/api';
@@ -5,7 +6,8 @@ import getErrorMessage from '../utils/error';
 import type { IBook, IMeta } from '../types/core.types';
 
 interface BookCache {
-  data: IBook[] | IBook;
+  data: IBook[];
+  meta: IMeta;
   timestamp: number;
 }
 
@@ -21,7 +23,7 @@ interface BookStore {
   cache: {
     books: { [key: string]: BookCache };
     search: { [key: string]: BookCache };
-    detailBook: { [key: string]: BookCache };
+    detailBook: { [key: string]: { data: IBook; timestamp: number } };
   };
   fetchBooks: (page?: number, limit?: number, isLoadMore?: boolean) => Promise<void>;
   loadMoreBooks: () => Promise<void>;
@@ -42,6 +44,7 @@ interface BookStore {
   addBook: (data: IBook) => Promise<void>;
   editBook: (id: number, data: IBook) => Promise<void>;
   removeBook: (id: number) => Promise<void>;
+  resetBooksState: () => void; // Tambahkan fungsi reset
 }
 
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
@@ -66,8 +69,8 @@ const useBookStore = create<BookStore>((set, get) => ({
     const cached = get().cache.books[cacheKey];
     const now = Date.now();
 
-    if (cached && now - cached.timestamp < CACHE_DURATION) {
-      set({ books: cached.data as IBook[], meta: get().meta, loading: false });
+    if (cached && now - cached.timestamp < CACHE_DURATION && !isLoadMore) {
+      set({ books: cached.data, meta: cached.meta, loading: false });
       return;
     }
 
@@ -86,7 +89,7 @@ const useBookStore = create<BookStore>((set, get) => ({
           ...state.cache,
           books: {
             ...state.cache.books,
-            [cacheKey]: { data, timestamp: now },
+            [cacheKey]: { data: isLoadMore ? [...state.books, ...data] : data, meta, timestamp: now },
           },
         },
       }));
@@ -116,7 +119,7 @@ const useBookStore = create<BookStore>((set, get) => ({
     const now = Date.now();
 
     if (cached && now - cached.timestamp < CACHE_DURATION) {
-      set({ detailBook: cached.data as IBook, loading: false });
+      set({ detailBook: cached.data, loading: false });
       return;
     }
 
@@ -153,8 +156,8 @@ const useBookStore = create<BookStore>((set, get) => ({
     const cached = get().cache.search[cacheKey];
     const now = Date.now();
 
-    if (cached && now - cached.timestamp < CACHE_DURATION) {
-      set({ searchResults: cached.data as IBook[], searchMeta: get().searchMeta, loading: false });
+    if (cached && now - cached.timestamp < CACHE_DURATION && !isLoadMore) {
+      set({ searchResults: cached.data, searchMeta: cached.meta, loading: false });
       return;
     }
 
@@ -173,7 +176,7 @@ const useBookStore = create<BookStore>((set, get) => ({
           ...state.cache,
           search: {
             ...state.cache.search,
-            [cacheKey]: { data, timestamp: now },
+            [cacheKey]: { data: isLoadMore ? [...state.searchResults, ...data] : data, meta, timestamp: now },
           },
         },
       }));
@@ -245,6 +248,16 @@ const useBookStore = create<BookStore>((set, get) => ({
     } finally {
       set({ loading: false });
     }
+  },
+
+  // Tambahkan fungsi reset
+  resetBooksState: () => {
+    set({
+      books: [],
+      meta: { total: 0, page: 1, limit: 10, totalPages: 1 },
+      loading: false,
+      isLoadingNextPage: false,
+    });
   },
 }));
 
