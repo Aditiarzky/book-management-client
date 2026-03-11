@@ -9,6 +9,7 @@ const ViewCh = lazy(() => import('../pages/view/Page'))
 const Search = lazy(() => import('../pages/search/Page'))
 const AdminPage = lazy(() => import('../pages/admin/Page'))
 const LoginPage = lazy(() => import('../pages/auth/Page'))
+const AuthCallback = lazy(() => import('../pages/auth/Callback'))
 const NotFound = lazy(() => import('../pages/notfound/Page'))
 
 const homeRoute = createRoute({
@@ -45,6 +46,11 @@ const loginRoute = createRoute({
   path: PATH.LOGIN_PAGE,
   component: LoginPage,
 })
+const authCallbackRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: PATH.AUTH_CALLBACK_PAGE,
+  component: AuthCallback,
+})
 const notFoundRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "*",
@@ -58,6 +64,7 @@ const routeTree = rootRoute.addChildren([
   viewRoute,
   adminRoute,
   loginRoute,
+  authCallbackRoute,
   notFoundRoute,
 ])
 

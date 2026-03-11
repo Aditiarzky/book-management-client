@@ -1,10 +1,9 @@
-import { DiscussionEmbed } from 'disqus-react';
 import { Ch } from '@/components/NewCh';
-import type { IBook} from '@/types/core.types';
-import {useEffect, useState } from 'react';
-import { useTheme } from '@/context/ThemeContext';
+import type { IBook } from '@/types/core.types';
+import { useEffect, useState } from 'react';
+import SupabaseCommentEmbed from '@/components/SupabaseCommentEmbed';
 import { AlertCircle, RefreshCw } from 'lucide-react';
-interface DetailInterface{
+interface DetailInterface {
   book: IBook | null;
 }
 const EmptyState = ({ title, description, icon: Icon = AlertCircle, onRefresh }: {
@@ -28,7 +27,7 @@ const EmptyState = ({ title, description, icon: Icon = AlertCircle, onRefresh }:
     )}
   </div>
 );
-function NavDetail({book}:DetailInterface) {
+function NavDetail({ book }: DetailInterface) {
   const [showChapter, setShowChapter] = useState(true);
   const toggleChapter = () => {
     setShowChapter(!showChapter);
@@ -47,61 +46,61 @@ function NavDetail({book}:DetailInterface) {
     setSortOrder(selectedSortOrder);
     localStorage.setItem('sortOrder', selectedSortOrder);
   };
-  const createMarkup = (text:string) => {
+  const createMarkup = (text: string) => {
     return { __html: text };
   };
-  return(
+  return (
     <div>
       <div className='flex justify-center'>
-      <ul className='flex gap-3 px-3 py-2 m-5 rounded-xl bg-gray-900 w-fit text-white font-medium'>
-        <li className={showChapter ? 'hov-b' : 'hov-b brightness-50'} onClick={toggleChapter}>Chapter</li>
-        <li className={!showChapter ? 'hov-b' : 'hov-b brightness-50'} onClick={toggleChapter}>Informasi</li>
-      </ul>
+        <ul className='flex gap-3 px-3 py-2 m-5 rounded-xl bg-gray-900 w-fit text-white font-medium'>
+          <li className={showChapter ? 'hov-b' : 'hov-b brightness-50'} onClick={toggleChapter}>Chapter</li>
+          <li className={!showChapter ? 'hov-b' : 'hov-b brightness-50'} onClick={toggleChapter}>Informasi</li>
+        </ul>
       </div>
       {/* daftar chapter */}
-     
+
       {showChapter && (
         book ? (
           <div className='flex items-center flex-col gap-3'>
-          <section>
-          <label htmlFor="sortOrder">Sort By</label>
-            <select id="sortOrder" className="ml-2 pl-2 pe-10 cursor-pointer py-1 border text-gray-500 border-gray-300 bg-inherit rounded" value={sortOrder} onChange={handleSortOrderChange}>
-              <option value="ascending">Asc</option>
-              <option value="descending">Desc</option>
-            </select>
-          </section>
-          <section className=" gap-x-1.5 gap-y-3 flex flex-wrap justify-center" >
-          {(book.chapters || []).sort((a, b) => {
-            const volA = a.volume ?? 0;
-            const volB = b.volume ?? 0;
-            const chapA = a.chapter;
-            const chapB = b.chapter;
-            if (sortOrder === 'ascending') {
-              if (volA !== volB) {
-                return volA - volB;
-              }
-              return chapA - chapB;
-            } else {
-              if (volA !== volB) {
-                return volB - volA;
-              }
-              return chapB - chapA;
-            }
-          }).map((chapter) => (
-              <div className='drop-shadow-md'>
-                <Ch
-                type={1}
-                chapter={chapter.chapter}
-                thumbnail={chapter.thumbnail}
-                created_at={chapter.created_at}
-                volume={chapter.volume}
-                id={chapter.id}
-                bookId={chapter.bookId}
-                nama={chapter.nama}
-              />
-              </div>
-            ))}
-          </section>
+            <section>
+              <label htmlFor="sortOrder">Sort By</label>
+              <select id="sortOrder" className="ml-2 pl-2 pe-10 cursor-pointer py-1 border text-gray-500 border-gray-300 bg-inherit rounded" value={sortOrder} onChange={handleSortOrderChange}>
+                <option value="ascending">Asc</option>
+                <option value="descending">Desc</option>
+              </select>
+            </section>
+            <section className=" gap-x-1.5 gap-y-3 flex flex-wrap justify-center" >
+              {(book.chapters || []).sort((a, b) => {
+                const volA = a.volume ?? 0;
+                const volB = b.volume ?? 0;
+                const chapA = a.chapter;
+                const chapB = b.chapter;
+                if (sortOrder === 'ascending') {
+                  if (volA !== volB) {
+                    return volA - volB;
+                  }
+                  return chapA - chapB;
+                } else {
+                  if (volA !== volB) {
+                    return volB - volA;
+                  }
+                  return chapB - chapA;
+                }
+              }).map((chapter) => (
+                <div className='drop-shadow-md'>
+                  <Ch
+                    type={1}
+                    chapter={chapter.chapter}
+                    thumbnail={chapter.thumbnail}
+                    created_at={chapter.created_at}
+                    volume={chapter.volume}
+                    id={chapter.id}
+                    bookId={chapter.bookId}
+                    nama={chapter.nama}
+                  />
+                </div>
+              ))}
+            </section>
           </div>
         ) : (
           <EmptyState
@@ -187,14 +186,12 @@ function NavDetail({book}:DetailInterface) {
     </div>
   )
 }
-export default function DetailComponent({book}:DetailInterface) {
-  const { theme } = useTheme();
-  const disqusShortname = 'riztranslation-1';
-  const disqusConfig = {
-      url: book ? `https://riztranslation.rf.gd/detail/${book.id}` : 'https://riztranslation.rf.gd/detail/unknown',
-      identifier: book ? `book-${book.id}` : 'book-unknown',
-      title: book?.judul || "Unknown Title",
-  };
+export default function DetailComponent({ book }: DetailInterface) {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+  const supabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey)
+  const commentSlug = book ? `book-${book.id}` : 'book-unknown'
+
   return (
     <div>
       <main className="transition-all w-full duration-500 min-h-dvh max-w-6xl mx-auto px-4">
@@ -206,14 +203,14 @@ export default function DetailComponent({book}:DetailInterface) {
                   style={{ backgroundImage: `url(${book.cover || '/placeholder-cover.jpg'})` }}
                   className="h-48 w-full bg-center flex justify-center bg-cover shadow-2xl dark:shadow-gray-600 rounded-lg"
                 >
-                <div className='flex w-full justify-center rounded-lg h-full backdrop-blur-xs'>
-                  <img
-                    src={book.cover || '/placeholder-cover.jpg'}
-                    alt={book.judul || 'Unknown Title'}
-                    className="h-52 w-40 object-cover mt-12 absolute rounded-md shadow-[0px_2px_3px_-1px_rgba(0,0,0,0.1),0px_1px_0px_0px_rgba(25,28,33,0.02),0px_0px_0px_1px_rgba(25,28,33,0.08)]"
-                  />
+                  <div className='flex w-full justify-center rounded-lg h-full backdrop-blur-xs'>
+                    <img
+                      src={book.cover || '/placeholder-cover.jpg'}
+                      alt={book.judul || 'Unknown Title'}
+                      className="h-52 w-40 object-cover mt-12 absolute rounded-md shadow-[0px_2px_3px_-1px_rgba(0,0,0,0.1),0px_1px_0px_0px_rgba(25,28,33,0.02),0px_0px_0px_1px_rgba(25,28,33,0.08)]"
+                    />
+                  </div>
                 </div>
-              </div>
               </div>
             ) : (
               <EmptyState
@@ -242,15 +239,24 @@ export default function DetailComponent({book}:DetailInterface) {
                 )}
               </h1>
             </div>
-            <NavDetail book={book}/>
+            <NavDetail book={book} />
           </section>
         </div>
       </main>
-          <section className='w-full max-w-6xl mx-auto px-2 py-10 dark:text-white text-black min-h-96'>
-            <div className='rounded-md border shadow-xl dark:shadow-gray-800 p-6'>
-            <DiscussionEmbed key={`disqus-${book?.id || 'unknown'}-${theme}`} shortname={disqusShortname} config={disqusConfig} />
-            </div>
-          </section>
+      <section className='w-full max-w-6xl mx-auto px-2 py-10 dark:text-white text-black min-h-96'>
+        {supabaseConfigured ? (
+          <SupabaseCommentEmbed
+            site="book-detail"
+            slug={commentSlug}
+            title="Komentar Buku"
+          />
+        ) : (
+          <p className="text-xs text-slate-400">
+            Komentar Supabase belum dikonfigurasi. Set environment variable{' '}
+            <code>VITE_SUPABASE_URL</code> dan <code>VITE_SUPABASE_ANON_KEY</code> untuk menampilkannya.
+          </p>
+        )}
+      </section>
     </div>
-  );
+  )
 }

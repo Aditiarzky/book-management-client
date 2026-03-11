@@ -1,9 +1,8 @@
-/* eslint-disable no-constant-binary-expression */
+
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate} from '@tanstack/react-router';
-import {ChevronLeft, ChevronRight, CloudAlert, LibraryBig, RefreshCw, Home } from 'lucide-react';
-import { DiscussionEmbed } from 'disqus-react';
-import { useTheme } from '@/context/ThemeContext';
+import { Link, useNavigate } from '@tanstack/react-router';
+import { ChevronLeft, ChevronRight, CloudAlert, LibraryBig, RefreshCw, Home } from 'lucide-react';
+import SupabaseCommentEmbed from '@/components/SupabaseCommentEmbed';
 import type { IBook, IChapter } from '@/types/core.types';
 import { DETAIL_PAGE, VIEW_PAGE } from '@/routes/constants';
 import { Button } from '@/components/ui/button';
@@ -28,8 +27,8 @@ const CustomSwitch = ({ checked, onCheckedChange }: { checked: boolean; onChecke
 };
 
 // Komponen Empty State untuk Chapter
-const EmptyChapterState = ({ onRefresh, onGoHome }: { 
-  onRefresh?: () => void; 
+const EmptyChapterState = ({ onRefresh, onGoHome }: {
+  onRefresh?: () => void;
   onGoHome?: () => void;
 }) => (
   <div className="flex flex-col items-center justify-center min-h-[50vh] p-8 text-center">
@@ -56,7 +55,7 @@ const EmptyChapterState = ({ onRefresh, onGoHome }: {
 );
 
 // Komponen Empty State untuk Konten Chapter
-const EmptyContentState = ({ chapterName, onRefresh }: { 
+const EmptyContentState = ({ chapterName, onRefresh }: {
   chapterName: string;
   onRefresh?: () => void;
 }) => (
@@ -75,7 +74,7 @@ const EmptyContentState = ({ chapterName, onRefresh }: {
   </div>
 );
 
-interface NavChInterface{
+interface NavChInterface {
   chapter: IChapter | null;
   konten: IBook | null;
   nextChapter: IChapter | null;
@@ -181,9 +180,8 @@ const ImageBlock = ({ image, alt }: ImageBlockProps) => {
                 src={url}
                 alt={`${alt} - bagian ${index + 1}`}
                 loading="lazy"
-                className={`w-full transition-opacity duration-300 ${
-                  state === 'loaded' ? 'opacity-100' : 'opacity-0'
-                }`}
+                className={`w-full transition-opacity duration-300 ${state === 'loaded' ? 'opacity-100' : 'opacity-0'
+                  }`}
                 onLoad={() => handleImageLoad(index)}
                 onError={() => handleImageError(index, url)}
               />
@@ -199,7 +197,7 @@ const ImageBlock = ({ image, alt }: ImageBlockProps) => {
 }
 
 
-function NavCh({ chapter, konten, prevChapter, listCh, nextChapter}:NavChInterface) {
+function NavCh({ chapter, konten, prevChapter, listCh, nextChapter }: NavChInterface) {
   const [isFixed, setIsFixed] = useState(true);
   const [prevScrollPos, setPrevScrollPos] = useState(0);
   const [selectedChapter, setSelectedChapter] = useState(chapter?.id.toString());
@@ -269,7 +267,7 @@ function NavCh({ chapter, konten, prevChapter, listCh, nextChapter}:NavChInterfa
               </div>
             </Button>
           )}
-          <Link className="hov-b" to={DETAIL_PAGE} params={{id:`${konten?.id}`}}>
+          <Link className="hov-b" to={DETAIL_PAGE} params={{ id: `${konten?.id}` }}>
             <div className="px-3 py-2.5 bg-gray-900 shadow-[rgba(50,_50,_105,_0.15)_0px_2px_5px_0px,_rgba(0,_0,_0,_0.05)_0px_1px_1px_0px] rounded">
               <LibraryBig className='h-4' />
             </div>
@@ -302,19 +300,15 @@ function NavCh({ chapter, konten, prevChapter, listCh, nextChapter}:NavChInterfa
 }
 
 export default function ViewComponent(
-  { viewChapter, chapterByBook}:
-  {viewChapter:IChapter|null, chapterByBook:IChapter[]}) {
+  { viewChapter, chapterByBook }:
+    { viewChapter: IChapter | null, chapterByBook: IChapter[] }) {
   const [fontSizeClass, setFontSizeClass] = useState('');
   const [readingMode, setReadingMode] = useState(false);
-  const { theme } = useTheme();
   const navigate = useNavigate();
-  
-  const disqusShortname = 'riztranslation-1'; 
-  const disqusConfig = {
-      url: `https://riztranslation.rf.gd/view/${viewChapter?.bookId}/${viewChapter?.id}`, 
-      identifier: `chapter-${viewChapter?.id}` || 'unknown', 
-      title: `${viewChapter?.book.judul} - Chapter ${viewChapter?.chapter}` || "chapterJudul", 
-  };
+
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+  const supabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey)
 
   useEffect(() => {
     const savedFontSize = localStorage.getItem('fontSize');
@@ -352,17 +346,17 @@ export default function ViewComponent(
     return <EmptyChapterState onRefresh={handleRefresh} onGoHome={handleGoHome} />;
   }
 
-const sortedChapters = [...chapterByBook].sort((a, b) => {
-  const volA = a.volume ?? 0;
-  const volB = b.volume ?? 0;
-  if (volA !== volB) {
-    return volA - volB;
-  }
-  return a.chapter - b.chapter;
-});
-const currentIndex = sortedChapters.findIndex((ch) => ch.id === viewChapter.id);
-const prevChapter = currentIndex > 0 ? sortedChapters[currentIndex - 1] : null;
-const nextChapter = currentIndex < sortedChapters.length - 1 ? sortedChapters[currentIndex + 1] : null;
+  const sortedChapters = [...chapterByBook].sort((a, b) => {
+    const volA = a.volume ?? 0;
+    const volB = b.volume ?? 0;
+    if (volA !== volB) {
+      return volA - volB;
+    }
+    return a.chapter - b.chapter;
+  });
+  const currentIndex = sortedChapters.findIndex((ch) => ch.id === viewChapter.id);
+  const prevChapter = currentIndex > 0 ? sortedChapters[currentIndex - 1] : null;
+  const nextChapter = currentIndex < sortedChapters.length - 1 ? sortedChapters[currentIndex + 1] : null;
 
   return (
     <div key={viewChapter?.id}>
@@ -465,7 +459,7 @@ const nextChapter = currentIndex < sortedChapters.length - 1 ? sortedChapters[cu
       <main className="transition-all min-h-dvh flex mb-10 flex-col items-center w-full duration-500 max-w-6xl mx-auto">
         <div className="my-5 w-full md:px-4 px-2 flex flex-col gap-1 items-center">
           <h1 className="text-2xl hover:underline font-semibold text-center">
-            <Link to={DETAIL_PAGE} params={{id:viewChapter.bookId.toString()}}>{viewChapter.book.judul}</Link>
+            <Link to={DETAIL_PAGE} params={{ id: viewChapter.bookId.toString() }}>{viewChapter.book.judul}</Link>
           </h1>
           <h1 className="text-xl font-medium">
             Chapter {viewChapter.chapter}
@@ -474,44 +468,44 @@ const nextChapter = currentIndex < sortedChapters.length - 1 ? sortedChapters[cu
           </h1>
         </div>
         <div className='md:px-4 w-full px-2'>
-        {viewChapter.isitext && (
-          <div className="mb-4 flex flex-col items-end justify-end w-full gap-2">
-            <div className="flex items-center gap-2">
-              <label htmlFor="readingMode" className="text-sm font-medium">
-                Reading Theme
-              </label>
-              <CustomSwitch
-                checked={readingMode}
-                onCheckedChange={toggleReadingMode}
-              />
+          {viewChapter.isitext && (
+            <div className="mb-4 flex flex-col items-end justify-end w-full gap-2">
+              <div className="flex items-center gap-2">
+                <label htmlFor="readingMode" className="text-sm font-medium">
+                  Reading Theme
+                </label>
+                <CustomSwitch
+                  checked={readingMode}
+                  onCheckedChange={toggleReadingMode}
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <label htmlFor="fontSize" className="text-sm font-medium flex items-center gap-1">
+                  Font Size
+                </label>
+                <select
+                  id="fontSize"
+                  className="pl-2 pe-10 cursor-pointer py-1 border text-gray-500 border-gray-300 bg-inherit rounded"
+                  value={fontSizeClass}
+                  onChange={handleFontSizeChange}
+                >
+                  <option value="text-xs">XS</option>
+                  <option value="text-sm">SM</option>
+                  <option value="text-md">MD</option>
+                  <option value="text-lg">LG</option>
+                  <option value="text-xl">XL</option>
+                  <option value="text-2xl">2XL</option>
+                  <option value="text-3xl">3XL</option>
+                  <option value="text-4xl">4XL</option>
+                </select>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <label htmlFor="fontSize" className="text-sm font-medium flex items-center gap-1">
-                Font Size
-              </label>
-              <select
-                id="fontSize"
-                className="pl-2 pe-10 cursor-pointer py-1 border text-gray-500 border-gray-300 bg-inherit rounded"
-                value={fontSizeClass}
-                onChange={handleFontSizeChange}
-              >
-                <option value="text-xs">XS</option>
-                <option value="text-sm">SM</option>
-                <option value="text-md">MD</option>
-                <option value="text-lg">LG</option>
-                <option value="text-xl">XL</option>
-                <option value="text-2xl">2XL</option>
-                <option value="text-3xl">3XL</option>
-                <option value="text-4xl">4XL</option>
-              </select>
-            </div>
-          </div>
-        )}
+          )}
         </div>
 
         {/* Cek apakah ada konten (teks atau gambar) */}
         {(!viewChapter.isitext && !viewChapter.isigambar) ? (
-          <EmptyContentState 
+          <EmptyContentState
             chapterName={`Chapter ${viewChapter.chapter}${viewChapter.nama ? ` - ${viewChapter.nama}` : ''}`}
             onRefresh={handleRefresh}
           />
@@ -527,9 +521,18 @@ const nextChapter = currentIndex < sortedChapters.length - 1 ? sortedChapters[cu
         )}
       </main>
       <section className="w-full max-w-6xl mx-auto px-2 py-10 dark:text-white text-black min-h-96">
-        <div className="rounded-md border shadow-xl dark:shadow-gray-800 p-6">
-          <DiscussionEmbed key={`disqus-${viewChapter?.id}-${theme}`} shortname={disqusShortname} config={disqusConfig} />
-        </div>
+        {supabaseConfigured ? (
+          <SupabaseCommentEmbed
+            site="chapter"
+            slug={`${viewChapter.bookId}-${viewChapter.id}`}
+            title="Komentar Chapter"
+          />
+        ) : (
+          <p className="text-xs text-slate-400">
+            Komentar Supabase belum dikonfigurasi. Set <code>VITE_SUPABASE_URL</code> dan{' '}
+            <code>VITE_SUPABASE_ANON_KEY</code> untuk menampilkannya.
+          </p>
+        )}
       </section>
     </div>
   );
