@@ -21,31 +21,31 @@ export default function ViewCh() {
       }
     };
     loadData();
-  }, [chapterId, bookIdNum]);
+  }, [chapterId, bookIdNum, fetchViewChapter, chapterByBook, fetchByBook]);
 
-  useEffect(()=>{
+  useEffect(() => {
     if (viewChapter && !loading) {
-     setMetaTags({
-       title: `Baca Chapter ${viewChapter.chapter} - ${viewChapter.book.judul} | Riztranslation`,
-       description: viewChapter.book.synopsis || 'Baca chapter buku',
-       image: viewChapter.thumbnail || 'https://i.imgur.com/uaZ4pwN.jpeg',
-       url: window.location.href,
-     })
+      setMetaTags({
+        title: `Baca Chapter ${viewChapter.chapter} - ${viewChapter.book.judul} | Riztranslation`,
+        description: viewChapter.book.synopsis || 'Baca chapter buku',
+        image: viewChapter.thumbnail || 'https://i.imgur.com/uaZ4pwN.jpeg',
+        url: window.location.href,
+      })
     }
   })
 
   return (
     <GuestLayout>
       {loading ? (
-      <div className="w-full right-0 flex gap-3 flex-col items-center justify-cente mt-3">
-        <Sekeleton height="20px" width="250px"/>
-        <Sekeleton height="15px" width="150px"/>
-        <div className="w-[90%] flex flex-col gap-2 mt-3">
-          <Sekeleton count={10} height="200px"/>
+        <div className="w-full right-0 flex gap-3 flex-col items-center justify-cente mt-3">
+          <Sekeleton height="20px" width="250px" />
+          <Sekeleton height="15px" width="150px" />
+          <div className="w-[90%] flex flex-col gap-2 mt-3">
+            <Sekeleton count={10} height="200px" />
+          </div>
         </div>
-      </div>
-      ):(
-      <ViewComponent viewChapter={viewChapter} chapterByBook={chapterByBook}/>
+      ) : (
+        <ViewComponent viewChapter={viewChapter} chapterByBook={chapterByBook} />
       )}
     </GuestLayout>
   );

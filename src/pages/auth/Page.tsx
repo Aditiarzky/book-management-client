@@ -27,6 +27,8 @@ const LoginPage = () => {
       await login({ email, password });
       toast.success('Login successful');
     } catch (err) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      toast.error(err as any);
       // Error is handled by the store and displayed below
     }
   };

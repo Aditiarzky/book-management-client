@@ -1,539 +1,551 @@
-
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
-import { ChevronLeft, ChevronRight, CloudAlert, LibraryBig, RefreshCw, Home } from 'lucide-react';
+import {
+  ChevronLeft, ChevronRight, CloudAlert, LibraryBig,
+  RefreshCw, Home, Settings, BookOpen,
+  Moon, Sun, ZoomIn, ZoomOut,
+  ArrowUp, MessageSquare, List, X
+} from 'lucide-react';
 import SupabaseCommentEmbed from '@/components/SupabaseCommentEmbed';
 import type { IBook, IChapter } from '@/types/core.types';
-import { DETAIL_PAGE, VIEW_PAGE } from '@/routes/constants';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DETAIL_PAGE, VIEW_PAGE, SEARCH_PAGE } from '@/routes/constants';
 import { Progress } from '@/components/ui/progress';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Search } from 'lucide-react';
+import { useTheme } from '@/context/ThemeContext';
 
-// Custom Switch Component
-const CustomSwitch = ({ checked, onCheckedChange }: { checked: boolean; onCheckedChange: (checked: boolean) => void }) => {
-  return (
-    <label className="relative inline-flex items-center cursor-pointer">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onCheckedChange(e.target.checked)}
-        className="sr-only"
-      />
-      <div className={`w-11 h-6 bg-gray-200 rounded-md peer dark:bg-gray-700 ${checked ? 'bg-gray-500' : ''}`}>
-        <div className={`absolute top-0.5 left-[2px] bg-white border-gray-300 border rounded-md h-5 w-5 transition-all ${checked ? 'translate-x-5' : ''}`}></div>
-      </div>
-    </label>
-  );
-};
+/* ─────────────────────────────────────────────
+   TYPES
+───────────────────────────────────────────── */
+// 'dark' | 'light' sync dengan Navigation via useTheme() (ThemeContext)
+// 'sepia' adalah mode khusus reader, disimpan di localStorage['r-sepia']
+type Theme = 'dark' | 'light' | 'sepia';
+type FontSize = 'text-sm' | 'text-base' | 'text-lg' | 'text-xl' | 'text-2xl';
 
-// Komponen Empty State untuk Chapter
-const EmptyChapterState = ({ onRefresh, onGoHome }: {
-  onRefresh?: () => void;
-  onGoHome?: () => void;
-}) => (
-  <div className="flex flex-col items-center justify-center min-h-[50vh] p-8 text-center">
-    <CloudAlert className="h-16 w-16 text-muted-foreground mb-4" />
-    <h2 className="text-2xl font-semibold text-muted-foreground mb-2">Chapter Tidak Ditemukan</h2>
-    <p className="text-muted-foreground mb-6 max-w-md">
-      Chapter yang Anda cari tidak tersedia atau telah dihapus. Silakan coba chapter lain atau kembali ke halaman utama.
+/* ─────────────────────────────────────────────
+   EMPTY STATES
+───────────────────────────────────────────── */
+const EmptyChapterState = ({ onRefresh, onGoHome }: { onRefresh?: () => void; onGoHome?: () => void }) => (
+  <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-6 py-16">
+    <div className="w-20 h-20 rounded-2xl bg-gray-100 dark:bg-white/5 flex items-center justify-center mb-6">
+      <CloudAlert className="h-9 w-9 text-gray-400 dark:text-white/20" />
+    </div>
+    <h2 className="text-xl font-bold text-gray-800 dark:text-white/80 mb-2">Chapter Tidak Ditemukan</h2>
+    <p className="text-gray-500 dark:text-white/30 mb-8 max-w-sm text-sm leading-relaxed">
+      Chapter yang kamu cari tidak tersedia atau telah dihapus.
     </p>
     <div className="flex gap-3">
       {onRefresh && (
-        <Button onClick={onRefresh} variant="outline" className="flex items-center gap-2">
-          <RefreshCw className="h-4 w-4" />
-          Refresh Halaman
-        </Button>
+        <button onClick={onRefresh} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-600 dark:text-white/50 text-sm transition-all">
+          <RefreshCw className="h-4 w-4" /> Refresh
+        </button>
       )}
       {onGoHome && (
-        <Button onClick={onGoHome} className="flex items-center gap-2">
-          <Home className="h-4 w-4" />
-          Kembali ke Beranda
-        </Button>
+        <button onClick={onGoHome} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-medium transition-all">
+          <Home className="h-4 w-4" /> Beranda
+        </button>
       )}
     </div>
   </div>
 );
 
-// Komponen Empty State untuk Konten Chapter
-const EmptyContentState = ({ chapterName, onRefresh }: {
-  chapterName: string;
-  onRefresh?: () => void;
-}) => (
-  <div className="flex flex-col items-center justify-center min-h-[30vh] p-8 text-center">
-    <CloudAlert className="h-12 w-12 text-muted-foreground mb-4" />
-    <h3 className="text-xl font-semibold text-muted-foreground mb-2">Konten Tidak Tersedia</h3>
-    <p className="text-muted-foreground mb-4 max-w-md">
-      Konten untuk {chapterName} tidak tersedia. Mungkin masih dalam proses penerjemahan atau ada masalah teknis.
-    </p>
+const EmptyContentState = ({ chapterName, onRefresh }: { chapterName: string; onRefresh?: () => void }) => (
+  <div className="flex flex-col items-center justify-center min-h-[30vh] text-center px-6 py-12">
+    <CloudAlert className="h-10 w-10 text-gray-300 dark:text-white/20 mb-4" />
+    <p className="text-gray-500 dark:text-white/30 text-sm mb-4">Konten {chapterName} belum tersedia.</p>
     {onRefresh && (
-      <Button onClick={onRefresh} variant="outline" className="flex items-center gap-2">
-        <RefreshCw className="h-4 w-4" />
-        Coba Lagi
-      </Button>
+      <button onClick={onRefresh} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-white/40 text-sm transition-all hover:bg-gray-200 dark:hover:bg-white/10">
+        <RefreshCw className="h-3.5 w-3.5" /> Coba Lagi
+      </button>
     )}
   </div>
 );
 
-interface NavChInterface {
-  chapter: IChapter | null;
-  konten: IBook | null;
-  nextChapter: IChapter | null;
-  prevChapter: IChapter | null;
-  listCh: IChapter[];
-}
+/* ─────────────────────────────────────────────
+   IMAGE BLOCK
+───────────────────────────────────────────── */
+const ImageBlock = ({ image, alt, zoom }: { image: string; alt: string; zoom: number }) => {
+  const canvasRefs = useRef<(HTMLCanvasElement | null)[]>([]);
+  const [loadedCount, setLoadedCount] = useState(0);
+  const [states, setStates] = useState<Record<number, 'loading' | 'loaded' | 'error'>>({});
 
-interface ImageBlockProps {
-  image: string;
-  alt: string;
-}
+  const urls = useMemo(() => {
+    if (!image) return [];
+    return image.replace(/^\[|\]$/g, '').split(',').map(u => u.trim().replace(/^"|"$/g, '')).filter(Boolean);
+  }, [image]);
 
-const ImageBlock = ({ image, alt }: ImageBlockProps) => {
-  const canvasRefs = useRef<(HTMLCanvasElement | null)[]>([])
-  const [loadedCount, setLoadedCount] = useState(0)
-  const [errors, setErrors] = useState<number[]>([])
-  const [imageLoadStates, setImageLoadStates] = useState<Record<number, 'loading' | 'loaded' | 'error'>>({})
+  const onLoad = (i: number) => { setLoadedCount(p => p + 1); setStates(p => ({ ...p, [i]: 'loaded' })); };
 
-  const imageUrls = useMemo(() => {
-    if (!image) return []
-    const trimmed = image.replace(/^\[|\]$/g, '')
-    return trimmed
-      .split(',')
-      .map((url) => url.trim().replace(/^"|"$/g, ''))
-      .filter(Boolean)
-  }, [image])
+  const onError = (i: number, url: string) => {
+    setStates(p => ({ ...p, [i]: 'error' }));
+    const canvas = canvasRefs.current[i];
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => { canvas.width = img.naturalWidth; canvas.height = img.naturalHeight; ctx.drawImage(img, 0, 0); };
+    img.onerror = () => { canvas.width = 400; canvas.height = 100; ctx.fillStyle = '#111'; ctx.fillRect(0, 0, 400, 100); ctx.fillStyle = '#ef4444'; ctx.font = '13px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('Gagal memuat gambar', 200, 55); };
+    img.src = url;
+  };
 
-  const handleImageLoad = (index: number) => {
-    setLoadedCount((prev) => prev + 1)
-    setImageLoadStates((prev) => ({ ...prev, [index]: 'loaded' }))
-  }
-
-  const handleImageError = (index: number, url: string) => {
-    setErrors((prev) => [...prev, index])
-    setImageLoadStates((prev) => ({ ...prev, [index]: 'error' }))
-
-    const canvas = canvasRefs.current[index]
-    if (!canvas) return
-
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-
-    const img = new Image()
-    img.crossOrigin = 'anonymous'
-
-    img.onload = () => {
-      canvas.width = img.naturalWidth
-      canvas.height = img.naturalHeight
-      ctx.drawImage(img, 0, 0)
-    }
-
-    img.onerror = () => {
-      canvas.width = 300
-      canvas.height = 150
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
-      ctx.fillStyle = "red"
-      ctx.font = "16px Arial"
-      ctx.textAlign = "center"
-      ctx.fillText("Gagal memuat gambar", canvas.width / 2, canvas.height / 2)
-    }
-
-    img.src = url
-  }
-
-  const progress = imageUrls.length > 0 ? (loadedCount / imageUrls.length) * 100 : 0
+  const progress = urls.length > 0 ? (loadedCount / urls.length) * 100 : 100;
 
   return (
-    <div className="space-y-4">
+    <div style={{ maxWidth: `${zoom}%`, margin: '0 auto', transition: 'max-width 0.3s ease' }}>
       {progress < 100 && (
-        <div className="w-1/2 max-w-md mx-auto">
-          <Progress value={progress} />
-          <p className="text-center text-sm text-muted-foreground mt-2">
-            Memuat gambar... ({loadedCount}/{imageUrls.length})
-          </p>
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-gray-950 border border-white/10 rounded-xl px-5 py-2.5 flex items-center gap-4 shadow-xl">
+          <div className="w-28"><Progress value={progress} className="h-1 bg-white/10" /></div>
+          <span className="text-white/40 text-xs tabular-nums">{loadedCount}/{urls.length}</span>
         </div>
       )}
+      {urls.map((url, i) => {
+        const s = states[i];
+        if (s === 'error') return <canvas key={i} ref={el => { canvasRefs.current[i] = el; }} className="w-full" />;
+        return (
+          <div key={i} className="relative w-full">
+            <img src={url} alt={`${alt} - ${i + 1}`} loading="lazy"
+              className={`w-full block transition-opacity duration-500 ${s === 'loaded' ? 'opacity-100' : 'opacity-0'}`}
+              onLoad={() => onLoad(i)} onError={() => onError(i, url)} />
+            {s !== 'loaded' && <div className="absolute inset-0 bg-gray-200 dark:bg-white/5 animate-pulse" style={{ minHeight: 300 }} />}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
 
-      {errors.length > 0 && progress === 100 && (
-        <p className="text-red-500 text-center">Beberapa gambar gagal dimuat, ditampilkan ulang dengan canvas.</p>
-      )}
-
-      <div>
-        {imageUrls.map((url: string, index) => {
-          const state = imageLoadStates[index]
-
-          if (state === 'error') {
-            return (
-              <canvas
-                key={index}
-                ref={(el) => {
-                  canvasRefs.current[index] = el
-                }}
-                aria-label={`Canvas fallback untuk ${alt} - bagian ${index + 1}`}
-                className="w-full"
-              />
-            )
-          }
-
-          return (
-            <div key={index} className="relative w-full">
-              {/* Always render <img>, handle state via onLoad/onError */}
-              <img
-                src={url}
-                alt={`${alt} - bagian ${index + 1}`}
-                loading="lazy"
-                className={`w-full transition-opacity duration-300 ${state === 'loaded' ? 'opacity-100' : 'opacity-0'
-                  }`}
-                onLoad={() => handleImageLoad(index)}
-                onError={() => handleImageError(index, url)}
-              />
-              {state !== 'loaded' && (
-                <div className="absolute inset-0 my-2 bg-muted animate-pulse rounded-md" />
-              )}
-            </div>
-          )
-        })}
+/* ─────────────────────────────────────────────
+   SETTINGS PANEL
+───────────────────────────────────────────── */
+const SettingsPanel = ({ isOpen, onClose, theme, setTheme, fontSize, setFontSize, zoom, setZoom }: {
+  isOpen: boolean; onClose: () => void; theme: Theme; setTheme: (t: Theme) => void;
+  fontSize: FontSize; setFontSize: (f: FontSize) => void; zoom: number; setZoom: (z: number) => void;
+}) => (
+  <>
+    <div className={`fixed inset-0 z-40 transition-all duration-300 ${isOpen ? 'bg-black/40 backdrop-blur-sm' : 'pointer-events-none opacity-0'}`} onClick={onClose} />
+    <div className={`fixed right-0 top-0 h-full w-72 z-50 bg-white dark:bg-[#111114] border-l border-gray-100 dark:border-white/5 shadow-2xl transition-transform duration-300 ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+      <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-white/5">
+        <span className="font-semibold text-sm text-gray-800 dark:text-white/80">Pengaturan Baca</span>
+        <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-all">
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+      <div className="px-5 py-6 space-y-7">
+        <div>
+          <p className="text-gray-400 dark:text-white/30 text-xs uppercase tracking-widest mb-3">Tema</p>
+          <div className="grid grid-cols-3 gap-2">
+            {([['dark', 'Dark', Moon], ['light', 'Light', Sun], ['sepia', 'Sepia', BookOpen]] as const).map(([v, l, Icon]) => (
+              <button key={v} onClick={() => setTheme(v)}
+                className={`flex flex-col items-center gap-1.5 py-3 rounded-xl text-xs font-medium transition-all border ${theme === v ? 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400' : 'bg-gray-50 dark:bg-white/3 border-gray-100 dark:border-white/5 text-gray-500 dark:text-white/40 hover:text-gray-800 dark:hover:text-white'}`}>
+                <Icon className="h-4 w-4" />{l}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <p className="text-gray-400 dark:text-white/30 text-xs uppercase tracking-widest mb-3">Ukuran Teks</p>
+          <div className="flex gap-1.5">
+            {(['text-sm', 'text-base', 'text-lg', 'text-xl', 'text-2xl'] as FontSize[]).map((f, idx) => (
+              <button key={f} onClick={() => setFontSize(f)}
+                className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all border ${fontSize === f ? 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400' : 'bg-gray-50 dark:bg-white/3 border-gray-100 dark:border-white/5 text-gray-400 dark:text-white/30 hover:text-gray-700 dark:hover:text-white'}`}>
+                {['S', 'M', 'L', 'XL', '2XL'][idx]}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-gray-400 dark:text-white/30 text-xs uppercase tracking-widest">Lebar Gambar</p>
+            <span className="text-gray-500 dark:text-white/40 text-xs font-mono">{zoom}%</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setZoom(Math.max(40, zoom - 10))} className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-white/40 hover:text-gray-800 dark:hover:text-white transition-all">
+              <ZoomOut className="h-3.5 w-3.5" />
+            </button>
+            <input type="range" min={40} max={100} step={5} value={zoom} onChange={e => setZoom(Number(e.target.value))}
+              className="flex-1 h-1 appearance-none bg-gray-200 dark:bg-white/10 rounded-full cursor-pointer accent-red-500" />
+            <button onClick={() => setZoom(Math.min(100, zoom + 10))} className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-white/40 hover:text-gray-800 dark:hover:text-white transition-all">
+              <ZoomIn className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+        <div>
+          <p className="text-gray-400 dark:text-white/30 text-xs uppercase tracking-widest mb-3">Pintasan Keyboard</p>
+          <div className="space-y-2">
+            {[['←', 'Chapter Sebelumnya'], ['→', 'Chapter Berikutnya'], ['S', 'Pengaturan']].map(([k, d]) => (
+              <div key={k} className="flex items-center justify-between">
+                <span className="text-gray-400 dark:text-white/30 text-xs">{d}</span>
+                <kbd className="px-2 py-0.5 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded text-gray-500 dark:text-white/40 text-xs font-mono">{k}</kbd>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
-  )
-}
+  </>
+);
 
+/* ─────────────────────────────────────────────
+   CHAPTER DRAWER
+───────────────────────────────────────────── */
+const ChapterDrawer = ({ isOpen, onClose, chapters, currentId, bookId, navigate }: {
+  isOpen: boolean; onClose: () => void; chapters: IChapter[];
+  currentId: number; bookId: number; navigate: ReturnType<typeof useNavigate>;
+}) => (
+  <>
+    <div className={`fixed inset-0 z-40 transition-all duration-300 ${isOpen ? 'bg-black/40 backdrop-blur-sm' : 'pointer-events-none opacity-0'}`} onClick={onClose} />
+    <div className={`fixed left-0 top-0 h-full w-64 z-50 bg-white dark:bg-[#111114] border-r border-gray-100 dark:border-white/5 shadow-2xl transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-white/5">
+        <span className="font-semibold text-sm text-gray-800 dark:text-white/80">Daftar Chapter</span>
+        <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-all">
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+      <div className="overflow-y-auto h-[calc(100%-57px)] py-1">
+        {chapters.map(ch => (
+          <button key={ch.id} onClick={() => { navigate({ to: VIEW_PAGE, params: { bookId: bookId.toString(), id: ch.id.toString() } }); onClose(); }}
+            className={`w-full text-left px-5 py-2.5 text-sm transition-all flex items-center justify-between ${ch.id === currentId ? 'bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 font-medium' : 'text-gray-500 dark:text-white/40 hover:text-gray-800 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-white/3'}`}>
+            <span>{ch.volume ? `Vol ${ch.volume} Ch ${ch.chapter}` : `Ch ${ch.chapter}`}</span>
+            {ch.id === currentId && <div className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />}
+          </button>
+        ))}
+      </div>
+    </div>
+  </>
+);
 
-function NavCh({ chapter, konten, prevChapter, listCh, nextChapter }: NavChInterface) {
-  const [isFixed, setIsFixed] = useState(true);
-  const [prevScrollPos, setPrevScrollPos] = useState(0);
-  const [selectedChapter, setSelectedChapter] = useState(chapter?.id.toString());
-  const navigate = useNavigate();
-
+/* ─────────────────────────────────────────────
+   READING PROGRESS LINE
+───────────────────────────────────────────── */
+const ReadingProgressLine = () => {
+  const [p, setP] = useState(0);
   useEffect(() => {
-    const handleScroll = () => {
-      const currentScrollPos = window.pageYOffset;
-      if (currentScrollPos < prevScrollPos && !isFixed) {
-        setIsFixed(true);
-      } else if (currentScrollPos > prevScrollPos && isFixed) {
-        setIsFixed(false);
-      }
-      setPrevScrollPos(currentScrollPos);
-    };
+    const fn = () => { const el = document.documentElement; setP((el.scrollTop / (el.scrollHeight - el.clientHeight)) * 100); };
+    window.addEventListener('scroll', fn, { passive: true });
+    return () => window.removeEventListener('scroll', fn);
+  }, []);
+  return <div className="h-0.5 bg-gray-100 dark:bg-transparent"><div className="h-full bg-red-500 transition-[width] duration-75" style={{ width: `${p}%` }} /></div>;
+};
 
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [isFixed, prevScrollPos]);
+/* ─────────────────────────────────────────────
+   TOP BAR
+───────────────────────────────────────────── */
+const ReaderTopBar = ({ chapter, konten, isVisible, onSettings, onChapterList }: {
+  chapter: IChapter; konten: IBook | null; isVisible: boolean;
+  onSettings: () => void; onChapterList: () => void;
+}) => (
+  <header className={`fixed top-0 left-0 right-0 z-30 transition-transform duration-300 ${isVisible ? 'translate-y-0' : '-translate-y-16'}`}>
+    <div className="bg-white/90 dark:bg-gray-950/90 backdrop-blur-xl border-b border-gray-100 dark:border-white/5 h-16">
+      <div className="max-w-6xl mx-auto px-4 h-full flex items-center gap-3">
+        <Link to={DETAIL_PAGE} params={{ id: konten?.id.toString() ?? '' }}
+          className="flex items-center gap-1.5 text-gray-400 hover:text-gray-700 dark:hover:text-white transition-colors group shrink-0">
+          <ChevronLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
+          <span className="hidden sm:block text-xs max-w-[130px] truncate font-medium">{konten?.judul}</span>
+        </Link>
+        <div className="flex-1 text-center min-w-0 px-2">
+          <p className="text-gray-700 dark:text-white/70 text-sm font-semibold truncate">
+            {chapter.volume ? `Vol ${chapter.volume} · ` : ''}Ch {chapter.chapter}
+            {chapter.nama && <span className="text-gray-400 dark:text-white/30 font-normal"> · {chapter.nama}</span>}
+          </p>
+        </div>
+        <div className="flex items-center gap-0.5 shrink-0">
+          <Link to={SEARCH_PAGE} className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-all">
+            <Search className="h-4 w-4" />
+          </Link>
+          <button onClick={onChapterList} className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-all">
+            <List className="h-4 w-4" />
+          </button>
+          <button onClick={onSettings} className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-all">
+            <Settings className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+    <ReadingProgressLine />
+  </header>
+);
 
-  useEffect(() => {
-    setSelectedChapter(chapter?.id.toString());
-  }, [chapter?.id]);
-
-  const handleGoToNextChapter = () => {
-    if (!nextChapter || !konten?.id) return;
-    navigate({
-      to: VIEW_PAGE,
-      params: {
-        bookId: konten.id.toString(),
-        id: nextChapter.id.toString(),
-      },
-    });
-  };
-
-  const handleGoToPrevChapter = () => {
-    if (!prevChapter || !konten?.id) return;
-    navigate({
-      to: VIEW_PAGE,
-      params: {
-        bookId: konten.id.toString(),
-        id: prevChapter.id.toString(),
-      },
-    });
-  };
-
-  const handleChapterChange = (value: string) => {
-    setSelectedChapter(value);
+/* ─────────────────────────────────────────────
+   BOTTOM NAV
+───────────────────────────────────────────── */
+const BottomNav = ({ chapter, konten, prevChapter, nextChapter, listCh, isVisible, navigate }: {
+  chapter: IChapter; konten: IBook | null; prevChapter: IChapter | null; nextChapter: IChapter | null;
+  listCh: IChapter[]; isVisible: boolean; navigate: ReturnType<typeof useNavigate>;
+}) => {
+  const [sel, setSel] = useState(chapter?.id.toString());
+  useEffect(() => setSel(chapter?.id.toString()), [chapter?.id]);
+  const go = (id: string) => {
+    setSel(id);
     if (konten?.id) {
-      navigate({ to: `/view/${konten.id}/${value}` });
+      navigate({ to: VIEW_PAGE, params: { bookId: konten.id.toString(), id } });
     }
   };
 
-  // Jika tidak ada chapter, tidak tampilkan navigasi
-  if (!chapter) {
-    return null;
-  }
-
   return (
-    <div>
-      <nav className={`${isFixed ? 'fixed' : 'hidden'} w-full left-0 right-0 bottom-0 z-50`}>
-        <div className="my-5 ps-3 pe-3 flex w-full justify-center text-white gap-3">
-          {prevChapter && (
-            <Button className="hov-b w-fit p-0 text-white" onClick={handleGoToPrevChapter}>
-              <div className="px-3 py-2.5 bg-gray-900 shadow-[rgba(50,_50,_105,_0.15)_0px_2px_5px_0px,_rgba(0,_0,_0,_0.05)_0px_1px_1px_0px] rounded">
-                <ChevronLeft className='h-4' />
-              </div>
-            </Button>
-          )}
-          <Link className="hov-b" to={DETAIL_PAGE} params={{ id: `${konten?.id}` }}>
-            <div className="px-3 py-2.5 bg-gray-900 shadow-[rgba(50,_50,_105,_0.15)_0px_2px_5px_0px,_rgba(0,_0,_0,_0.05)_0px_1px_1px_0px] rounded">
-              <LibraryBig className='h-4' />
-            </div>
-          </Link>
-          <div className="bg-gray-900 shadow-[rgba(50,_50,_105,_0.15)_0px_2px_5px_0px,_rgba(0,_0,_0,_0.05)_0px_1px_1px_0px] rounded">
-            <Select value={selectedChapter} onValueChange={handleChapterChange}>
-              <SelectTrigger className="border text-gray-500 border-gray-900 bg-inherit rounded">
-                <SelectValue placeholder="Select Chapter" />
+    <div className={`fixed bottom-0 left-0 right-0 z-30 transition-transform duration-300 ${isVisible ? 'translate-y-0' : 'translate-y-full'}`}>
+      <div className="bg-white/90 dark:bg-gray-950/90 backdrop-blur-xl border-t border-gray-100 dark:border-white/5">
+        <div className="max-w-6xl mx-auto px-4 h-14 flex items-center gap-2">
+          <button disabled={!prevChapter}
+            onClick={() => prevChapter && konten && navigate({ to: VIEW_PAGE, params: { bookId: konten.id.toString(), id: prevChapter.id.toString() } })}
+            className="flex items-center gap-1 px-3 h-9 rounded-xl text-xs font-medium border transition-all disabled:opacity-25 disabled:cursor-not-allowed border-gray-200 dark:border-white/8 bg-gray-50 dark:bg-white/3 text-gray-500 dark:text-white/50 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/6 shrink-0">
+            <ChevronLeft className="h-3.5 w-3.5" /><span className="hidden sm:inline">Prev</span>
+          </button>
+          <div className="flex-1">
+            <Select value={sel} onValueChange={go}>
+              <SelectTrigger className="h-9 bg-gray-50 max-w-42 dark:bg-white/3 border-gray-200 dark:border-white/8 text-gray-500 dark:text-white/50 rounded-xl text-xs hover:bg-gray-100 dark:hover:bg-white/5 transition-all">
+                <SelectValue />
               </SelectTrigger>
-              <SelectContent className='bg-gray-900 text-gray-500'>
-                {listCh.map((ch) => (
-                  <SelectItem key={ch.id} value={ch.id.toString()}>
+              <SelectContent className="bg-white dark:bg-[#111114] border-gray-100 dark:border-white/10 text-gray-600 dark:text-white/50 max-h-56">
+                {listCh.map(ch => (
+                  <SelectItem key={ch.id} value={ch.id.toString()} className="text-xs">
                     {ch.volume ? `Vol ${ch.volume} Ch ${ch.chapter}` : `Ch ${ch.chapter}`}
+                    {ch.nama && <span className="opacity-50 ml-1">· {ch.nama}</span>}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
-          {nextChapter && (
-            <Button className="hov-b w-fit p-0 text-white" onClick={handleGoToNextChapter}>
-              <div className="px-3 py-2.5 bg-gray-900 shadow-[rgba(50,_50,_105,_0.15)_0px_2px_5px_0px,_rgba(0,_0,_0,_0.05)_0px_1px_1px_0px] rounded">
-                <ChevronRight className='h-4' />
-              </div>
-            </Button>
-          )}
+          <Link to={DETAIL_PAGE} params={{ id: konten?.id.toString() ?? '' }}
+            className="flex items-center justify-center w-9 h-9 rounded-xl bg-gray-50 dark:bg-white/3 border border-gray-200 dark:border-white/8 text-gray-400 dark:text-white/30 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/6 transition-all shrink-0">
+            <LibraryBig className="h-4 w-4" />
+          </Link>
+          <button disabled={!nextChapter}
+            onClick={() => nextChapter && konten && navigate({ to: VIEW_PAGE, params: { bookId: konten.id.toString(), id: nextChapter.id.toString() } })}
+            className="flex items-center gap-1 px-3 h-9 rounded-xl text-xs font-medium border transition-all disabled:opacity-25 disabled:cursor-not-allowed bg-red-500 border-red-500 text-white hover:bg-red-600 shrink-0">
+            <span className="hidden sm:inline">Next</span><ChevronRight className="h-3.5 w-3.5" />
+          </button>
         </div>
-      </nav>
+      </div>
     </div>
   );
-}
+};
 
-export default function ViewComponent(
-  { viewChapter, chapterByBook }:
-    { viewChapter: IChapter | null, chapterByBook: IChapter[] }) {
-  const [fontSizeClass, setFontSizeClass] = useState('');
-  const [readingMode, setReadingMode] = useState(false);
+/* ─────────────────────────────────────────────
+   MAIN EXPORT
+───────────────────────────────────────────── */
+export default function ViewComponent({ viewChapter, chapterByBook }: { viewChapter: IChapter | null; chapterByBook: IChapter[] }) {
+  const [fontSize, setFontSize] = useState<FontSize>('text-base');
+  const [zoom, setZoom] = useState(100);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [chapterDrawerOpen, setChapterDrawerOpen] = useState(false);
+  const [barsVisible, setBarsVisible] = useState(true);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const lastY = useRef(0);
   const navigate = useNavigate();
+  const supabaseConfigured = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
 
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-  const supabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey)
+  // Theme: pakai useTheme() — sama persis dengan Navigation
+  // Sepia adalah mode tambahan khusus reader
+  const { theme: globalTheme, setTheme: setGlobalTheme } = useTheme();
+  const [isSepiaModeActive, setIsSepiaModeActive] = useState<boolean>(
+    () => localStorage.getItem('r-sepia') === 'true'
+  );
 
+  // theme yang digunakan di reader = sepia jika aktif, else ikut globalTheme
+  const theme: Theme = isSepiaModeActive ? 'sepia' : (globalTheme as 'dark' | 'light');
+
+  const setTheme = (t: Theme) => {
+    if (t === 'sepia') {
+      setIsSepiaModeActive(true);
+      localStorage.setItem('r-sepia', 'true');
+    } else {
+      setIsSepiaModeActive(false);
+      localStorage.removeItem('r-sepia');
+      setGlobalTheme(t); // update ThemeContext → sync ke Navigation & <html>
+    }
+  };
+
+  // Load reader-specific prefs
   useEffect(() => {
-    const savedFontSize = localStorage.getItem('fontSize');
-    setFontSizeClass(savedFontSize || 'text-md');
-    const savedReadingMode = localStorage.getItem('readingMode');
-    setReadingMode(savedReadingMode === 'true');
+    setFontSize((localStorage.getItem('r-fontSize') as FontSize) || 'text-base');
+    setZoom(Number(localStorage.getItem('r-zoom')) || 100);
   }, []);
 
-  const handleFontSizeChange = (event: { target: { value: string; }; }) => {
-    const selectedFontSize = event.target.value;
-    setFontSizeClass(selectedFontSize);
-    localStorage.setItem('fontSize', selectedFontSize);
-  };
+  useEffect(() => { localStorage.setItem('r-fontSize', fontSize); }, [fontSize]);
+  useEffect(() => { localStorage.setItem('r-zoom', zoom.toString()); }, [zoom]);
 
-  const toggleReadingMode = () => {
-    const newMode = !readingMode;
-    setReadingMode(newMode);
-    localStorage.setItem('readingMode', newMode.toString());
-  };
+  // Hide global nav & footer — reader has its own
+  useEffect(() => {
+    const nav = document.querySelector('nav') as HTMLElement | null;
+    const footer = document.querySelector('footer') as HTMLElement | null;
+    if (nav) nav.style.display = 'none';
+    if (footer) footer.style.display = 'none';
+    return () => {
+      if (nav) nav.style.display = '';
+      if (footer) footer.style.display = '';
+    };
+  }, []);
 
-  const createMarkup = (text: string) => {
-    return { __html: text };
-  };
+  // Scroll: auto-hide bars
+  useEffect(() => {
+    const fn = () => {
+      const y = window.scrollY;
+      setShowScrollTop(y > 400);
+      if (Math.abs(y - lastY.current) < 8) return;
+      setBarsVisible(y < lastY.current || y < 80);
+      lastY.current = y;
+    };
+    window.addEventListener('scroll', fn, { passive: true });
+    return () => window.removeEventListener('scroll', fn);
+  }, []);
 
-  const handleRefresh = () => {
-    window.location.reload();
-  };
+  const sorted = useMemo(() =>
+    [...chapterByBook].sort((a, b) => ((a.volume ?? 0) - (b.volume ?? 0)) || (a.chapter - b.chapter)),
+    [chapterByBook]
+  );
 
-  const handleGoHome = () => {
-    navigate({ to: '/' });
-  };
+  // Keyboard shortcuts
+  useEffect(() => {
+    if (!viewChapter) return;
+    const idx = sorted.findIndex(c => c.id === viewChapter.id);
+    const prev = idx > 0 ? sorted[idx - 1] : null;
+    const next = idx < sorted.length - 1 ? sorted[idx + 1] : null;
+    const bid = viewChapter.book?.id?.toString() ?? '';
+    const fn = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === 'ArrowLeft' && prev) navigate({ to: VIEW_PAGE, params: { bookId: bid, id: prev.id.toString() } });
+      if (e.key === 'ArrowRight' && next) navigate({ to: VIEW_PAGE, params: { bookId: bid, id: next.id.toString() } });
+      if (e.key === 's' || e.key === 'S') setSettingsOpen(o => !o);
+    };
+    window.addEventListener('keydown', fn);
+    return () => window.removeEventListener('keydown', fn);
+  }, [viewChapter, sorted, navigate]);
 
-  // Jika tidak ada viewChapter, tampilkan empty state
-  if (!viewChapter) {
-    return <EmptyChapterState onRefresh={handleRefresh} onGoHome={handleGoHome} />;
-  }
+  if (!viewChapter) return <EmptyChapterState onRefresh={() => window.location.reload()} onGoHome={() => navigate({ to: '/' })} />;
 
-  const sortedChapters = [...chapterByBook].sort((a, b) => {
-    const volA = a.volume ?? 0;
-    const volB = b.volume ?? 0;
-    if (volA !== volB) {
-      return volA - volB;
-    }
-    return a.chapter - b.chapter;
-  });
-  const currentIndex = sortedChapters.findIndex((ch) => ch.id === viewChapter.id);
-  const prevChapter = currentIndex > 0 ? sortedChapters[currentIndex - 1] : null;
-  const nextChapter = currentIndex < sortedChapters.length - 1 ? sortedChapters[currentIndex + 1] : null;
+  const idx = sorted.findIndex(c => c.id === viewChapter.id);
+  const prevChapter = idx > 0 ? sorted[idx - 1] : null;
+  const nextChapter = idx < sorted.length - 1 ? sorted[idx + 1] : null;
+
+  // Sepia override: dark/light sepenuhnya dari Tailwind dark: class (sync Navigation)
+  const isSepia = isSepiaModeActive;
 
   return (
-    <div key={viewChapter?.id}>
-      {/* style untuk isi teks */}
-      <style>
-        {`
-          .tiptap-content {
-            font-family:serif;
-            min-height: 200px; /* Ensures the container has a minimum height */
-          }
-          .tiptap-content h1 {
-            font-size: 2em;
-            font-weight: bold;
-            margin: 1em 0;
-            text-indent: 0; /* No indentation for headings */
-          }
-          .tiptap-content h2 {
-            font-size: 1.5em;
-            font-weight: bold;
-            margin: 1em 0;
-            text-indent: 0; /* No indentation for headings */
-          }
-          .tiptap-content p {
-            margin: 1em 0; /* Clear separation between paragraphs */
-            min-height: 1.5em; /* Visible height for empty paragraphs */
-            line-height: 1.5; /* Improved readability */
-            text-indent: 1em; /* Novel-like first-line indentation */
-          }
-          .tiptap-content p:empty {
-            text-indent: 0; /* No indentation for empty paragraphs */
-          }
-          .tiptap-content p:empty::after {
-            content: '\u200B'; /* Zero-width space to force empty paragraph rendering */
-          }
-          .tiptap-content br {
-            display: block;
-            content: '';
-            margin-bottom: 1.2em; /* Spacing for line breaks */
-          }
-          .tiptap-content ul,
-          .tiptap-content ol {
-            margin: 1.2em 0;
-            padding-left: 2em;
-          }
-          .tiptap-content ul li {
-            list-style-type: disc;
-            margin: 0.5em 0; /* Spacing between list items */
-          }
-          .tiptap-content ol li {
-            list-style-type: decimal;
-            margin: 0.5em 0; /* Spacing between list items */
-          }
-          .tiptap-content a {
-            color: #1a73e8;
-            text-decoration: underline;
-          }
-          .tiptap-content strong {
-            font-weight: bold;
-          }
-          .tiptap-content em {
-            font-style: italic;
-          }
-          .tiptap-content u {
-            text-decoration: underline;
-          }
-          .tiptap-content img {
-            width: 100%;
-            max-width: 100%;
-            height: auto;
-            margin: 0.5em 0;
-          }
-          .tiptap-content [data-type="highlight"] {
-            background-color: yellow;
-          }
-          .tiptap-content [style*="text-align: left"] {
-            text-align: left;
-          }
-          .tiptap-content [style*="text-align: center"] {
-            text-align: center;
-          }
-          .tiptap-content [style*="text-align: right"] {
-            text-align: right;
-          }
-          .tiptap-content [style*="text-align: justify"] {
-            text-align: justify;
-          }
-        `}
-      </style>
+    <div key={viewChapter.id} className="min-h-screen transition-colors duration-300">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&display=swap');
+        .prose-reader { font-family: 'Lora', Georgia, serif; }
+        .prose-reader p { margin: 0; padding: 0.5em 0; line-height: 1.9; text-indent: 1.5em; }
+        .prose-reader p:first-child, .prose-reader p:empty { text-indent: 0; }
+        .prose-reader p:empty::after { content: '\\200B'; }
+        .prose-reader h1 { font-size: 1.6em; font-weight: 700; margin: 1em 0 0.5em; text-indent: 0; }
+        .prose-reader h2 { font-size: 1.3em; font-weight: 600; margin: 0.8em 0 0.4em; text-indent: 0; }
+        .prose-reader strong { font-weight: 600; }
+        .prose-reader em { font-style: italic; }
+        .prose-reader a { color: #ef4444; }
+        .prose-reader ul, .prose-reader ol { margin: 1em 0; padding-left: 1.5em; }
+        .prose-reader li { margin: 0.3em 0; line-height: 1.7; }
+        .prose-reader ul li { list-style-type: disc; }
+        .prose-reader ol li { list-style-type: decimal; }
+      `}</style>
 
-      <div>
-        <NavCh
-          konten={viewChapter?.book}
-          chapter={viewChapter}
-          prevChapter={prevChapter}
-          listCh={sortedChapters}
-          nextChapter={nextChapter}
-        />
-      </div>
+      <ReaderTopBar chapter={viewChapter} konten={viewChapter.book} isVisible={barsVisible}
+        onSettings={() => setSettingsOpen(true)} onChapterList={() => setChapterDrawerOpen(true)} />
 
-      <main className="transition-all min-h-dvh flex mb-10 flex-col items-center w-full duration-500 max-w-6xl mx-auto">
-        <div className="my-5 w-full md:px-4 px-2 flex flex-col gap-1 items-center">
-          <h1 className="text-2xl hover:underline font-semibold text-center">
-            <Link to={DETAIL_PAGE} params={{ id: viewChapter.bookId.toString() }}>{viewChapter.book.judul}</Link>
-          </h1>
-          <h1 className="text-xl font-medium">
+      <SettingsPanel isOpen={settingsOpen} onClose={() => setSettingsOpen(false)}
+        theme={theme} setTheme={setTheme} fontSize={fontSize} setFontSize={setFontSize} zoom={zoom} setZoom={setZoom} />
+
+      <ChapterDrawer isOpen={chapterDrawerOpen} onClose={() => setChapterDrawerOpen(false)}
+        chapters={sorted} currentId={viewChapter.id} bookId={viewChapter.bookId} navigate={navigate} />
+
+      {/* Scroll to top */}
+      <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+        className={`fixed right-4 bottom-16 z-30 w-9 h-9 flex items-center justify-center rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-white/10 text-gray-400 dark:text-white/30 hover:text-gray-700 dark:hover:text-white shadow-sm transition-all duration-300 ${showScrollTop ? 'opacity-50 translate-y-0' : 'opacity-0 translate-y-3 pointer-events-none'}`}>
+        <ArrowUp className="h-4 w-4" />
+      </button>
+
+      <main className="pt-16 pb-14">
+        {/* Chapter header */}
+        <div className="max-w-2xl mx-auto px-4 py-8 text-center">
+          <Link to={DETAIL_PAGE} params={{ id: viewChapter.bookId.toString() }}
+            className="inline-flex items-start gap-1.5 text-gray-400 dark:text-white/25 hover:text-red-500 dark:hover:text-red-400 text-xs uppercase tracking-widest mb-3 transition-colors font-medium">
+            <LibraryBig className="h-3.5 w-3.5" />
+            {viewChapter.book?.judul}
+          </Link>
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-white/80 mb-1">
+            {viewChapter.volume && <span className="text-gray-400 dark:text-white/25 font-normal text-lg mr-2">Vol {viewChapter.volume}</span>}
             Chapter {viewChapter.chapter}
-            {viewChapter.volume && <span className="ml-1">Vol {viewChapter.volume}</span>}
-            {viewChapter.nama && <span className="ml-1">{viewChapter.nama}</span>}
           </h1>
-        </div>
-        <div className='md:px-4 w-full px-2'>
-          {viewChapter.isitext && (
-            <div className="mb-4 flex flex-col items-end justify-end w-full gap-2">
-              <div className="flex items-center gap-2">
-                <label htmlFor="readingMode" className="text-sm font-medium">
-                  Reading Theme
-                </label>
-                <CustomSwitch
-                  checked={readingMode}
-                  onCheckedChange={toggleReadingMode}
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <label htmlFor="fontSize" className="text-sm font-medium flex items-center gap-1">
-                  Font Size
-                </label>
-                <select
-                  id="fontSize"
-                  className="pl-2 pe-10 cursor-pointer py-1 border text-gray-500 border-gray-300 bg-inherit rounded"
-                  value={fontSizeClass}
-                  onChange={handleFontSizeChange}
-                >
-                  <option value="text-xs">XS</option>
-                  <option value="text-sm">SM</option>
-                  <option value="text-md">MD</option>
-                  <option value="text-lg">LG</option>
-                  <option value="text-xl">XL</option>
-                  <option value="text-2xl">2XL</option>
-                  <option value="text-3xl">3XL</option>
-                  <option value="text-4xl">4XL</option>
-                </select>
-              </div>
-            </div>
-          )}
+          {viewChapter.nama && <p className="text-gray-400 dark:text-white/30 text-sm mt-1">{viewChapter.nama}</p>}
+          <p className="text-gray-300 dark:text-white/15 text-xs mt-3">{idx + 1} / {sorted.length}</p>
         </div>
 
-        {/* Cek apakah ada konten (teks atau gambar) */}
-        {(!viewChapter.isitext && !viewChapter.isigambar) ? (
+        <div className="max-w-2xl mx-auto px-4 mb-8">
+          <div className="h-px bg-gradient-to-r from-transparent via-gray-200 dark:via-white/8 to-transparent" />
+        </div>
+
+        {/* Content */}
+        {!viewChapter.isitext && !viewChapter.isigambar ? (
           <EmptyContentState
             chapterName={`Chapter ${viewChapter.chapter}${viewChapter.nama ? ` - ${viewChapter.nama}` : ''}`}
-            onRefresh={handleRefresh}
+            onRefresh={() => window.location.reload()}
           />
         ) : (
           <>
             {viewChapter.isitext && (
-              <div className={`tiptap-content transition-all duration-200 p-4 w-full rounded-xl ${fontSizeClass} ${readingMode ? 'bg-amber-50 shadow-xl dark:shadow-gray-800 text-amber-900' : ''}`} dangerouslySetInnerHTML={createMarkup(viewChapter.isitext)} />
+              <div
+                className={`max-w-2xl mx-auto px-5 sm:px-8 py-6 rounded-2xl prose-reader ${fontSize} bg-white dark:bg-transparent text-gray-800 dark:text-white/85`}
+                style={isSepia ? { backgroundColor: '#faf6ef', color: '#3d2b1f' } : {}}
+                dangerouslySetInnerHTML={{ __html: viewChapter.isitext }}
+              />
             )}
             {viewChapter.isigambar && (
-              <ImageBlock image={viewChapter.isigambar} alt={`Chapter ${viewChapter.chapter} - ${viewChapter.book.judul}`} />
+              <ImageBlock image={viewChapter.isigambar}
+                alt={`Chapter ${viewChapter.chapter} - ${viewChapter.book?.judul}`} zoom={zoom} />
             )}
           </>
         )}
+
+        {/* End of chapter nav */}
+        <div className="max-w-xl mx-auto px-4 mt-14">
+          <div className="h-px bg-gradient-to-r from-transparent via-gray-200 dark:via-white/8 to-transparent mb-8" />
+          <div className="grid grid-cols-2 gap-3">
+            <button disabled={!prevChapter}
+              onClick={() => prevChapter && viewChapter.book?.id && navigate({ to: VIEW_PAGE, params: { bookId: viewChapter.book.id.toString(), id: prevChapter.id.toString() } })}
+              className="flex items-center gap-2 py-3.5 px-4 rounded-2xl bg-gray-50 dark:bg-white/3 border border-gray-100 dark:border-white/5 text-gray-500 dark:text-white/40 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/6 transition-all disabled:opacity-25 disabled:cursor-not-allowed">
+              <ChevronLeft className="h-4 w-4 shrink-0" />
+              <div className="text-left min-w-0">
+                <p className="text-[10px] opacity-50 leading-none mb-1">Sebelumnya</p>
+                <p className="text-sm font-medium leading-none truncate">{prevChapter ? `Ch ${prevChapter.chapter}` : '—'}</p>
+              </div>
+            </button>
+            <button disabled={!nextChapter}
+              onClick={() => nextChapter && viewChapter.book?.id && navigate({ to: VIEW_PAGE, params: { bookId: viewChapter.book.id.toString(), id: nextChapter.id.toString() } })}
+              className="flex items-center justify-end gap-2 py-3.5 px-4 rounded-2xl bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/15 transition-all disabled:opacity-25 disabled:cursor-not-allowed">
+              <div className="text-right min-w-0">
+                <p className="text-[10px] opacity-50 leading-none mb-1">Berikutnya</p>
+                <p className="text-sm font-medium leading-none truncate">{nextChapter ? `Ch ${nextChapter.chapter}` : '—'}</p>
+              </div>
+              <ChevronRight className="h-4 w-4 shrink-0" />
+            </button>
+          </div>
+        </div>
+
+        {/* Comments */}
+        <section className="max-w-3xl mx-auto px-4 py-12">
+          <div className="flex items-center gap-3 mb-6">
+            <MessageSquare className="h-4 w-4 text-gray-300 dark:text-white/15" />
+            <span className="text-gray-400 dark:text-white/25 text-xs font-semibold uppercase tracking-widest">Komentar</span>
+            <div className="flex-1 h-px bg-gray-100 dark:bg-white/5" />
+          </div>
+          {supabaseConfigured ? (
+            <SupabaseCommentEmbed site="chapter" slug={`${viewChapter.bookId}-${viewChapter.id}`} title="Komentar Chapter" />
+          ) : (
+            <p className="text-gray-300 dark:text-white/15 text-xs text-center py-6">
+              Set <code className="font-mono">VITE_SUPABASE_URL</code> dan <code className="font-mono">VITE_SUPABASE_ANON_KEY</code> untuk komentar.
+            </p>
+          )}
+        </section>
+
+        {/* Simple footer */}
+        <div className="border-t border-gray-100 dark:border-white/5 py-6 text-center">
+          <p className="text-gray-300 dark:text-white/15 text-xs">© {new Date().getFullYear()} Riztranslation</p>
+        </div>
       </main>
-      <section className="w-full max-w-6xl mx-auto px-2 py-10 dark:text-white text-black min-h-96">
-        {supabaseConfigured ? (
-          <SupabaseCommentEmbed
-            site="chapter"
-            slug={`${viewChapter.bookId}-${viewChapter.id}`}
-            title="Komentar Chapter"
-          />
-        ) : (
-          <p className="text-xs text-slate-400">
-            Komentar Supabase belum dikonfigurasi. Set <code>VITE_SUPABASE_URL</code> dan{' '}
-            <code>VITE_SUPABASE_ANON_KEY</code> untuk menampilkannya.
-          </p>
-        )}
-      </section>
+
+      <BottomNav chapter={viewChapter} konten={viewChapter.book} prevChapter={prevChapter}
+        nextChapter={nextChapter} listCh={sorted} isVisible={barsVisible} navigate={navigate} />
     </div>
   );
 }

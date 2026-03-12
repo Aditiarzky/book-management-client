@@ -3,21 +3,23 @@ import { DETAIL_PAGE, VIEW_PAGE } from '@/routes/constants';
 import { formatDate, formatDistanceToNow, isWithinOneMonth, isWithinOneWeek } from '../utils/format';
 import noImage from '@/placeholder.gif';
 
+/* ─────────────────────────────────────────────
+   TYPES
+───────────────────────────────────────────── */
 interface ChapterMixBook {
   type?: number;
   judul: string;
   cover: string;
   bookId: number;
   chapter: number;
-  thumbnail: string|null;
-  volume: number|null;
-  id:number;
+  thumbnail: string | null;
+  volume: number | null;
+  id: number;
   created_at: Date;
-  nama?:string;
+  nama?: string;
   tipe: string | null;
 }
 
-// Tipe khusus untuk komponen Ch
 interface ChProps {
   thumbnail: string | null;
   id: number;
@@ -29,89 +31,131 @@ interface ChProps {
   type?: number;
 }
 
+/* ─────────────────────────────────────────────
+   DATE HELPER
+───────────────────────────────────────────── */
+function getFormattedDate(created_at: Date): string {
+  const d = new Date(created_at);
+  if (isWithinOneWeek(d)) return formatDistanceToNow(d);
+  if (isWithinOneMonth(d)) return formatDistanceToNow(d, { includeSeconds: true });
+  return formatDate(d);
+}
 
-const NewCh = ({ tipe, judul, chapter, nama, created_at, cover, thumbnail, volume, id, bookId }: ChapterMixBook) => {
+/* ─────────────────────────────────────────────
+   NEW BADGE — shown within one week
+───────────────────────────────────────────── */
+const NewBadge = ({ created_at }: { created_at: Date }) => {
+  if (!isWithinOneWeek(new Date(created_at))) return null;
   return (
-    <main>
-      <div
-        title={judul}
-        className="flex space-x-2 cursor-pointer items-center hov-b drop-shadow-sm"
-      >
-        <Link to={DETAIL_PAGE} params={{id:`${bookId}`}} key={bookId}>
-          <div
-            style={{ backgroundImage: `url(${cover})` }}
-            className="h-40 w-28 bg-no-repeat bg-cover bg-center rounded-lg hov-b"
-          />
-        </Link>
-        <Link to={VIEW_PAGE} params={{bookId: `${bookId}`,id: `${id}`}} key={id}>
-          <div className="flex flex-col space-y-1 w-36">
-            <span className="text-xs">{tipe}</span>
-            <h1 className="font-semibold text-md line-clamp-2 wrap-break-word">{judul}</h1>
-            <Ch
-              thumbnail={thumbnail || noImage}
-              id={id}
-              bookId={bookId}
-              chapter={chapter}
-              volume={volume}
-              created_at={created_at}
-              nama={nama}
-            />
-          </div>
-        </Link>
-      </div>
-    </main>
+    <span className="absolute top-1.5 left-1.5 z-10 px-1.5 py-0.5 rounded-md bg-red-500 text-white text-[9px] font-bold uppercase tracking-wide leading-none">
+      New
+    </span>
   );
 };
 
-export default NewCh;
-
+/* ─────────────────────────────────────────────
+   Ch — chapter thumbnail card
+   type=1 → large (used in DetailComponent)
+   type=0/undefined → small (used in HomeComponent sidebar/grid)
+───────────────────────────────────────────── */
 export const Ch = ({ thumbnail, chapter, volume, nama, created_at, bookId, id, type }: ChProps) => {
-  const parsedDate = new Date(created_at);
-  let formattedDate;
+  const date = getFormattedDate(created_at);
+  const chapterLabel = `Ch ${chapter}${volume ? ` · Vol ${volume}` : ''}`;
 
-  if (isWithinOneWeek(parsedDate)) {
-    formattedDate = formatDistanceToNow(parsedDate);
-  } else if (isWithinOneMonth(parsedDate)) {
-    formattedDate = formatDistanceToNow(parsedDate, { includeSeconds: true });
-  } else {
-    formattedDate = formatDate(parsedDate);
-  }
-
+  /* ── Large card (type=1, used in detail page) ── */
   if (type === 1) {
     return (
-      <Link to={VIEW_PAGE} params={{bookId: bookId.toString(),id: id.toString()}} key={id} className="w-fit">
-        <div
-          style={{ backgroundImage: `url(${thumbnail || noImage})` }}
-          className="w-fit rounded-lg hov-b bg-no-repeat bg-cover"
-        >
-          <div className="flex h-28 font-medium p-1 flex-col text-white justify-end w-36 rounded-lg bg-gradient-to-t from-gray-900/70">
-            <h1 className="text-xs">
-              Chapter {chapter}
-              {volume && <span className="ml-1">Vol {volume}</span>}
-            </h1>
-            <p className='text-xs'>{nama && <span>{nama}</span>}</p>
-            <span className="text-[9px]">{formattedDate}</span>
+      <Link
+        to={VIEW_PAGE}
+        params={{ bookId: bookId.toString(), id: id.toString() }}
+        className="block w-fit group"
+      >
+        <div className="relative w-36 h-28 rounded-xl overflow-hidden">
+          <NewBadge created_at={created_at} />
+          <img
+            src={thumbnail || noImage}
+            alt={chapterLabel}
+            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+          <div className="absolute bottom-0 left-0 right-0 p-2">
+            <p className="text-white text-[11px] font-semibold leading-tight">{chapterLabel}</p>
+            {nama && <p className="text-white/70 text-[10px] leading-tight truncate">{nama}</p>}
+            <p className="text-white/50 text-[9px] mt-0.5">{date}</p>
           </div>
         </div>
       </Link>
     );
-  } else {
-    return (
-      <div key={`cardCh-${id}`} className="w-fit">
-        <div
-          style={{ backgroundImage: `url(${thumbnail})` }}
-          className="w-fit rounded-lg hov-b bg-no-repeat bg-cover"
-        >
-          <div className="flex h-20 p-1 flex-col text-white justify-end w-[110px] rounded-lg bg-gradient-to-t from-gray-900/70">
-            <h1 className="text-xs">
-              Chapter {chapter}
-              {volume && <span className="ml-1">Vol {volume}</span>}
-              {nama && <span className="ml-1">{nama}</span>}
-            </h1>
-            <span className="text-[9px]">{formattedDate}</span>
+  }
+
+  /* ── Small card (type=0, used in home page grid) ── */
+  return (
+    <div className="relative w-[110px] h-20 rounded-xl overflow-hidden group">
+      <NewBadge created_at={created_at} />
+      <img
+        src={thumbnail || noImage}
+        alt={chapterLabel}
+        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+      <div className="absolute bottom-0 left-0 right-0 p-1.5">
+        <p className="text-white text-[10px] font-semibold leading-tight truncate">
+          {chapterLabel}{nama ? ` · ${nama}` : ''}
+        </p>
+        <p className="text-white/50 text-[9px]">{date}</p>
+      </div>
+    </div>
+  );
+};
+
+/* ─────────────────────────────────────────────
+   NewCh — home page latest chapter card
+   (cover + chapter info side-by-side)
+───────────────────────────────────────────── */
+const NewCh = ({ tipe, judul, chapter, nama, created_at, cover, volume, id, bookId }: ChapterMixBook) => {
+  const date = getFormattedDate(created_at);
+  const chapterLabel = `Ch ${chapter}${volume ? ` · Vol ${volume}` : ''}`;
+  const isNew = isWithinOneWeek(new Date(created_at));
+
+  return (
+    <div className="flex gap-3 p-3 rounded-2xl bg-white dark:bg-white/3 border border-gray-100 dark:border-white/5 hover:bg-gray-50 dark:hover:bg-white/5 hover:border-gray-200 dark:hover:border-white/10 transition-all group cursor-pointer">
+      {/* Cover */}
+      <Link to={DETAIL_PAGE} params={{ id: `${bookId}` }} className="shrink-0 relative">
+        <div className="w-16 h-24 rounded-xl overflow-hidden">
+          <img
+            src={cover || noImage}
+            alt={judul}
+            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+          />
+        </div>
+      </Link>
+
+      {/* Info */}
+      <Link to={VIEW_PAGE} params={{ bookId: `${bookId}`, id: `${id}` }} className="flex-1 min-w-0 flex flex-col justify-between py-1">
+        <div>
+          {tipe && (
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-white/25">{tipe}</span>
+          )}
+          <h2 className="text-sm font-semibold text-gray-800 dark:text-white/80 line-clamp-2 leading-snug mt-0.5">
+            {judul}
+          </h2>
+        </div>
+        <div className="flex items-center justify-between mt-1.5">
+          <span className="text-xs text-gray-500 dark:text-white/40 font-medium">
+            {chapterLabel}{nama ? ` · ${nama}` : ''}
+          </span>
+          <div className="flex items-center gap-1.5">
+            {isNew && (
+              <span className="px-1.5 py-0.5 rounded-md bg-red-500/10 text-red-500 dark:text-red-400 text-[9px] font-bold uppercase tracking-wide">
+                New
+              </span>
+            )}
+            <span className="text-[10px] text-gray-400 dark:text-white/25">{date}</span>
           </div>
         </div>
-      </div>
-    );
-  }
+      </Link>
+    </div>
+  );
 };
+
+export default NewCh;
