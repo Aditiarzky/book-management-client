@@ -1,231 +1,158 @@
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { Edit, Trash2, Plus, Search, ArrowLeft } from "lucide-react"
-import type { IChapter, IBook } from "../../../types/core.types"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Link } from "@tanstack/react-router"
-import { VIEW_PAGE } from "@/routes/constants"
+import { useState } from "react";
+import { Edit, Trash2, Plus, ArrowLeft, Image, FileText as TextIcon } from "lucide-react";
+import type { IChapter, IBook } from "../../../types/core.types";
+import { Link } from "@tanstack/react-router";
+import { VIEW_PAGE } from "@/routes/constants";
+import { SearchInput, TableSkeleton, EmptyState, Pagination, ConfirmDelete, Th, Td, ActionBtn } from "@/components/admin/ui";
 
 interface ChaptersTableProps {
-  chapters: IChapter[]
-  book: IBook | null
-  loading: boolean
-  onAdd: () => void
-  onEdit: (chapter: IChapter) => void
-  onDelete: (id: number) => void
-  onBack: () => void
+  chapters: IChapter[];
+  book: IBook | null;
+  loading: boolean;
+  isFetching?: boolean;
+  pagination: { page: number; limit: number; total: number; totalPages: number };
+  onPageChange: (p: number) => void;
+  onLimitChange: (l: number) => void;
+  onAdd: () => void;
+  onEdit: (ch: IChapter) => void;
+  onDelete: (id: number) => void;
+  onBack: () => void;
 }
 
-export default function ChaptersTable({
-  chapters,
-  book,
-  loading,
-  onAdd,
-  onEdit,
-  onDelete,
-  onBack,
-}: ChaptersTableProps) {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [deleteId, setDeleteId] = useState<number | null>(null)
+export default function ChaptersTable({ chapters, book, loading, isFetching, pagination, onPageChange, onLimitChange, onAdd, onEdit, onDelete, onBack }: ChaptersTableProps) {
+  const [search, setSearch] = useState("");
+  const [deleteId, setDeleteId] = useState<number | null>(null);
 
-  const filteredChapters = chapters.filter((chapter): chapter is IChapter => !!chapter).filter(
-    (chapter) =>
-      (chapter.nama ? chapter.nama.toLowerCase().includes(searchTerm.toLowerCase()) : false) ||
-      chapter.chapter.toString().includes(searchTerm),
-  );
-  
+  const filtered = chapters
+    .filter((c): c is IChapter => !!c)
+    .filter(c =>
+      (c.nama?.toLowerCase().includes(search.toLowerCase()) ?? false) ||
+      c.chapter.toString().includes(search)
+    );
+
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Button variant="outline" size="sm" onClick={onBack}>
-                <ArrowLeft className="w-4 h-4" />
-              </Button>
-              <CardTitle>Manage Chapters</CardTitle>
-            </div>
-            {book && (
-              <div className="text-sm text-gray-600">
-                Book: <span className="font-medium">{book.judul}</span>
-              </div>
-            )}
+    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+      {/* Header */}
+      <div className="flex flex-col gap-3 p-5 border-b border-gray-100 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div className="flex items-center gap-2 mb-0.5">
+            <button onClick={onBack}
+              className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors shrink-0">
+              <ArrowLeft className="w-4 h-4" />
+            </button>
+            <h2 className="text-[15px] font-semibold text-gray-900">Kelola Chapter</h2>
           </div>
-          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input
-                placeholder="Search chapters..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 w-full sm:w-64"
-              />
-            </div>
-            <Button onClick={onAdd} className="flex items-center gap-2">
-              <Plus className="w-4 h-4" />
-              Add Chapter
-            </Button>
-          </div>
+          {book && (
+            <p className="text-xs text-gray-400 ml-9 truncate max-w-xs">{book.judul}</p>
+          )}
         </div>
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-600 mx-auto" />
-            <p className="mt-2 text-gray-600">Loading...</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-20">Chapter</TableHead>
-                  <TableHead>Volume</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Thumbnail</TableHead>
-                  <TableHead>Content</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead className="w-28">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredChapters.map((chapter) => (
-                  <TableRow key={chapter.id} className="transition-colors">
-                    <TableCell>
-                    <Link to={VIEW_PAGE} params={{id:chapter.id.toString(), bookId:chapter.bookId.toString()}}>
-                      <Badge variant="outline">Ch. {chapter.chapter}</Badge>
-                    </Link>
-                    </TableCell>
-                    <TableCell>
-                    <Link to={VIEW_PAGE} params={{id:chapter.id.toString(), bookId:chapter.bookId.toString()}}>
-                      {chapter.volume ? (
-                        <Badge variant="secondary">Vol. {chapter.volume}</Badge>
-                      ) : (
-                        <span className="text-gray-400">-</span>
-                      )}
-                    </Link>
-                    </TableCell>
-                    <TableCell>
-                    <Link to={VIEW_PAGE} params={{id:chapter.id.toString(), bookId:chapter.bookId.toString()}}>
-                      <div className="font-medium">{chapter.nama}</div>
-                    </Link>
-                    </TableCell>
-                    <TableCell>
-                    <Link to={VIEW_PAGE} params={{id:chapter.id.toString(), bookId:chapter.bookId.toString()}}>
-                      {chapter.thumbnail ? (
-                        <img
-                          src={chapter.thumbnail || "/placeholder.svg"}
-                          alt="Thumbnail"
-                          className="w-12 h-8 object-cover rounded transition-transform duration-200 hover:scale-105"
-                          onError={(e) => {
-                            e.currentTarget.src = "/placeholder.svg?height=32&width=48"
-                          }}
-                        />
-                      ) : (
-                        <span className="text-gray-400">No thumbnail</span>
-                      )}
-                    </Link>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        {chapter.isigambar && (
-                          <Badge variant="outline" className="text-xs">
-                            Images
-                          </Badge>
-                        )}
-                        {chapter.isitext && (
-                          <Badge variant="outline" className="text-xs">
-                            Text
-                          </Badge>
-                        )}
-                        {!chapter.isigambar && !chapter.isitext && (
-                          <span className="text-gray-400 text-xs">No content</span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm text-gray-600">{new Date(chapter.created_at).toLocaleDateString()}</div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button variant="outline" size="sm" onClick={() => onEdit(chapter)}>
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Edit Chapter</TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setDeleteId(chapter.id)}
-                                className="text-red-600 hover:text-red-700"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Delete Chapter</TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            {filteredChapters.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
-                {searchTerm ? "No chapters found" : "No chapters available"}
-              </div>
-            )}
-          </div>
-        )}
-      </CardContent>
+        <div className="flex gap-2">
+          <SearchInput value={search} onChange={setSearch} placeholder="Cari chapter..." className="w-full sm:w-48" />
+          <button onClick={onAdd}
+            className="h-9 px-3.5 rounded-xl bg-gray-900 hover:bg-gray-800 text-white text-sm font-medium flex items-center gap-1.5 shrink-0 transition-colors">
+            <Plus className="w-3.5 h-3.5" /> Tambah
+          </button>
+        </div>
+      </div>
 
-      <AlertDialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Chapter</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this chapter? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (deleteId) {
-                  onDelete(deleteId)
-                  setDeleteId(null)
-                }
-              }}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </Card>
-  )
+      {/* Table */}
+      <div className="overflow-x-auto">
+        {loading ? (
+          <TableSkeleton rows={5} cols={5} />
+        ) : filtered.length === 0 ? (
+          <EmptyState message={search ? "Tidak ada chapter yang cocok" : "Belum ada chapter"} />
+        ) : (
+          <table className="w-full">
+            <thead className="bg-gray-50/70 border-b border-gray-100">
+              <tr>
+                <Th>Chapter</Th>
+                <Th className="hidden sm:table-cell">Nama</Th>
+                <Th className="hidden md:table-cell">Thumbnail</Th>
+                <Th className="hidden sm:table-cell">Konten</Th>
+                <Th className="hidden lg:table-cell">Tanggal</Th>
+                <Th className="text-right">Aksi</Th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {filtered.map(ch => (
+                <tr key={ch.id} className="hover:bg-gray-50/50 transition-colors group">
+                  <Td>
+                    <Link to={VIEW_PAGE} params={{ id: ch.id.toString(), bookId: ch.bookId.toString() }}>
+                      <div>
+                        <span className="text-sm font-semibold text-gray-900 group-hover:text-gray-700">
+                          Ch. {ch.chapter}
+                        </span>
+                        {ch.volume && (
+                          <span className="ml-1.5 text-[11px] text-gray-400">Vol. {ch.volume}</span>
+                        )}
+                        {/* Mobile-only name */}
+                        {ch.nama && <p className="text-xs text-gray-400 mt-0.5 sm:hidden truncate max-w-[160px]">{ch.nama}</p>}
+                      </div>
+                    </Link>
+                  </Td>
+
+                  <Td className="hidden sm:table-cell">
+                    <p className="text-sm text-gray-600 truncate max-w-[200px]">{ch.nama || <span className="text-gray-300">—</span>}</p>
+                  </Td>
+
+                  <Td className="hidden md:table-cell">
+                    {ch.thumbnail ? (
+                      <img src={ch.thumbnail} alt="thumb"
+                        className="w-14 h-9 object-cover rounded-lg bg-gray-100"
+                        onError={e => { e.currentTarget.src = "/placeholder.svg"; }} />
+                    ) : (
+                      <span className="text-xs text-gray-300">Kosong</span>
+                    )}
+                  </Td>
+
+                  <Td className="hidden sm:table-cell">
+                    <div className="flex gap-1">
+                      {ch.isigambar && (
+                        <span className="flex items-center gap-1 text-[11px] px-1.5 py-0.5 bg-blue-50 text-blue-500 rounded-md font-medium">
+                          <Image className="w-3 h-3" /> Gambar
+                        </span>
+                      )}
+                      {ch.isitext && (
+                        <span className="flex items-center gap-1 text-[11px] px-1.5 py-0.5 bg-violet-50 text-violet-500 rounded-md font-medium">
+                          <TextIcon className="w-3 h-3" /> Teks
+                        </span>
+                      )}
+                      {!ch.isigambar && !ch.isitext && (
+                        <span className="text-xs text-gray-300">Kosong</span>
+                      )}
+                    </div>
+                  </Td>
+
+                  <Td className="hidden lg:table-cell">
+                    <span className="text-xs text-gray-400">{new Date(ch.created_at).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}</span>
+                  </Td>
+
+                  <Td className="text-right">
+                    <div className="flex items-center justify-end gap-1.5">
+                      <ActionBtn onClick={() => onEdit(ch)} title="Edit chapter">
+                        <Edit className="w-3.5 h-3.5" />
+                      </ActionBtn>
+                      <ActionBtn onClick={() => setDeleteId(ch.id)} variant="danger" title="Hapus chapter">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </ActionBtn>
+                    </div>
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <Pagination {...pagination} onPageChange={onPageChange} onLimitChange={onLimitChange} isFetching={isFetching} />
+
+      <ConfirmDelete
+        open={deleteId !== null}
+        title="Hapus Chapter?"
+        description="Tindakan ini tidak dapat dibatalkan. Data chapter akan dihapus permanen."
+        onConfirm={() => { if (deleteId) { onDelete(deleteId); setDeleteId(null); } }}
+        onCancel={() => setDeleteId(null)}
+      />
+    </div>
+  );
 }

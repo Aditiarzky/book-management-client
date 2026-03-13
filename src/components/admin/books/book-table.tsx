@@ -1,247 +1,162 @@
+import { useState } from "react";
+import { Edit, Trash2, Plus, BookOpen, ExternalLink } from "lucide-react";
+import type { IBook } from "../../../types/core.types";
+import { Link } from "@tanstack/react-router";
+import { DETAIL_PAGE } from "@/routes/constants";
+import { SearchInput, TableSkeleton, EmptyState, Pagination, ConfirmDelete, Th, Td, ActionBtn } from "@/components/admin/ui";
 
-
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { Edit, Trash2, Plus, Search, BookOpen } from "lucide-react"
-import type { IBook } from "../../../types/core.types"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Link } from "@tanstack/react-router"
-import { DETAIL_PAGE } from "@/routes/constants"
+const STATUS_STYLE: Record<string, string> = {
+  ongoing: "bg-emerald-50 text-emerald-600 border-emerald-100",
+  completed: "bg-blue-50 text-blue-600 border-blue-100",
+  hiatus: "bg-amber-50 text-amber-600 border-amber-100",
+  dropped: "bg-red-50 text-red-500 border-red-100",
+};
 
 interface BooksTableProps {
-  books: IBook[]
-  loading: boolean
-  onAdd: () => void
-  onEdit: (book: IBook) => void
-  onDelete: (id: number) => void
-  onViewChapters: (book: IBook) => void
+  books: IBook[];
+  loading: boolean;
+  isFetching?: boolean;
+  searchTerm: string;
+  onSearchTermChange: (v: string) => void;
+  pagination: { page: number; limit: number; total: number; totalPages: number };
+  onPageChange: (p: number) => void;
+  onLimitChange: (l: number) => void;
+  onAdd: () => void;
+  onEdit: (book: IBook) => void;
+  onDelete: (id: number) => void;
+  onViewChapters: (book: IBook) => void;
 }
 
-export default function BooksTable({ books, loading, onAdd, onEdit, onDelete, onViewChapters }: BooksTableProps) {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [deleteId, setDeleteId] = useState<number | null>(null)
-
-  const filteredBooks = books.filter(
-    (book) =>
-      book.judul.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      book.alt_judul?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      book.author.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      book.artist.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
-
-  const getStatusColor = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case "ongoing":
-        return "bg-green-100 text-green-800"
-      case "completed":
-        return "bg-blue-100 text-blue-800"
-      case "hiatus":
-        return "bg-yellow-100 text-yellow-800"
-      case "dropped":
-        return "bg-red-100 text-red-800"
-      default:
-        return "bg-gray-100 text-gray-800"
-    }
-  }
+export default function BooksTable({ books, loading, isFetching, searchTerm, onSearchTermChange, pagination, onPageChange, onLimitChange, onAdd, onEdit, onDelete, onViewChapters }: BooksTableProps) {
+  const [deleteId, setDeleteId] = useState<number | null>(null);
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <CardTitle>Manage Books</CardTitle>
-          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input
-                placeholder="Search books..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 w-full sm:w-64"
-              />
-            </div>
-            <Button onClick={onAdd} className="flex items-center gap-2">
-              <Plus className="w-4 h-4" />
-              Add Book
-            </Button>
-          </div>
+    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+      {/* Header */}
+      <div className="flex flex-col gap-3 p-5 border-b border-gray-100 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-[15px] font-semibold text-gray-900">Kelola Buku</h2>
+          <p className="text-xs text-gray-400 mt-0.5">{pagination.total.toLocaleString("id-ID")} buku terdaftar</p>
         </div>
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-600 mx-auto" />
-            <p className="mt-2 text-gray-600">Loading...</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-20">Cover</TableHead>
-                  <TableHead className="w-64">Title</TableHead>
-                  <TableHead>Author/Artist</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Genres</TableHead>
-                  <TableHead>Chapters</TableHead>
-                  <TableHead className="w-28">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredBooks.map((book) => (
-                  <TableRow key={book.id} className="transition-colors">
-                    <TableCell>
-                    <Link to={DETAIL_PAGE} params={{id:book.id.toString()}}>
-                      <img
-                        src={book.cover || "/placeholder.svg?height=60&width=40"}
-                        alt={book.judul}
-                        className="w-10 h-15 object-cover rounded"
-                        onError={(e) => {
-                          e.currentTarget.src = "/placeholder.svg?height=60&width=40"
-                        }}
-                      />
-                    </Link>
-                    </TableCell>
-                    <TableCell>
-                    <Link to={DETAIL_PAGE} params={{id:book.id.toString()}}>
-                      <div className="whitespace-break-spaces">
-                        <div className="font-medium whitespace-break-spaces">{book.judul}</div>
-                        {book.alt_judul && <div className="text-sm text-gray-500">{book.alt_judul}</div>}
-                      </div>
-                    </Link>
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="text-sm">Author: {book.author}</div>
-                        <div className="text-sm text-gray-500">Artist: {book.artist}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={getStatusColor(book.status || "")}>{book.status || "Unknown"}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{book.type || "Unknown"}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {book.genres?.slice(0, 2).map((genre) => (
-                          <Badge key={genre.id} variant="secondary" className="text-xs">
-                            {genre.nama}
-                          </Badge>
-                        ))}
-                        {book.genres?.length > 2 && (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Badge variant="secondary" className="text-xs">
-                                  +{book.genres.length - 2}
-                                </Badge>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <div className="flex flex-wrap gap-1">
-                                  {book.genres.slice(2).map((genre) => (
-                                    <Badge key={genre.id} variant="secondary">
-                                      {genre.nama}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onViewChapters(book)}
-                        className="flex items-center gap-1"
-                      >
-                        <BookOpen className="w-3 h-3" />
-                        {book.chapters?.length || 0}
-                      </Button>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button variant="outline" size="sm" onClick={() => onEdit(book)}>
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Edit Book</TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setDeleteId(book.id)}
-                                className="text-red-600 hover:text-red-700"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Delete Book</TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            {filteredBooks.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
-                {searchTerm ? "No books found" : "No books available"}
-              </div>
-            )}
-          </div>
-        )}
-      </CardContent>
+        <div className="flex gap-2">
+          <SearchInput value={searchTerm} onChange={onSearchTermChange} placeholder="Cari judul, author..." className="w-full sm:w-56" />
+          <button onClick={onAdd}
+            className="h-9 px-3.5 rounded-xl bg-gray-900 hover:bg-gray-800 text-white text-sm font-medium flex items-center gap-1.5 shrink-0 transition-colors">
+            <Plus className="w-3.5 h-3.5" /> Tambah
+          </button>
+        </div>
+      </div>
 
-      <AlertDialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Book</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this book? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (deleteId) {
-                  onDelete(deleteId)
-                  setDeleteId(null)
-                }
-              }}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </Card>
-  )
+      {/* Table */}
+      <div className="overflow-x-auto">
+        {loading ? (
+          <TableSkeleton rows={5} cols={6} />
+        ) : books.length === 0 ? (
+          <EmptyState message={searchTerm ? "Tidak ada buku yang cocok" : "Belum ada buku"} />
+        ) : (
+          <table className="w-full">
+            <thead className="bg-gray-50/70 border-b border-gray-100">
+              <tr>
+                <Th>Buku</Th>
+                <Th className="hidden md:table-cell">Author / Artist</Th>
+                <Th className="hidden sm:table-cell">Status</Th>
+                <Th className="hidden lg:table-cell">Type</Th>
+                <Th className="hidden lg:table-cell">Genre</Th>
+                <Th>Chapter</Th>
+                <Th className="text-right">Aksi</Th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {books.map(book => (
+                <tr key={book.id} className="hover:bg-gray-50/50 transition-colors group">
+                  {/* Cover + title */}
+                  <Td>
+                    <div className="flex items-center gap-3">
+                      <Link to={DETAIL_PAGE} params={{ id: book.id.toString() }} className="shrink-0">
+                        <img src={book.cover || "/placeholder.svg"} alt={book.judul}
+                          className="w-9 h-[52px] object-cover rounded-lg bg-gray-100 group-hover:ring-2 ring-gray-200 transition-all"
+                          onError={e => { e.currentTarget.src = "/placeholder.svg"; }} />
+                      </Link>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 truncate max-w-[180px]">{book.judul}</p>
+                        {book.alt_judul && <p className="text-xs text-gray-400 truncate max-w-[180px]">{book.alt_judul}</p>}
+                        {/* Mobile-only sub-info */}
+                        <div className="flex flex-wrap gap-1 mt-1 sm:hidden">
+                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-md border capitalize ${STATUS_STYLE[book.status?.toLowerCase() ?? ""] ?? "bg-gray-50 text-gray-500 border-gray-100"}`}>
+                            {book.status ?? "—"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </Td>
+
+                  <Td className="hidden md:table-cell">
+                    <p className="text-xs text-gray-600">{book.author}</p>
+                    <p className="text-xs text-gray-400">{book.artist}</p>
+                  </Td>
+
+                  <Td className="hidden sm:table-cell">
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-lg border capitalize ${STATUS_STYLE[book.status?.toLowerCase() ?? ""] ?? "bg-gray-50 text-gray-500 border-gray-100"}`}>
+                      {book.status ?? "—"}
+                    </span>
+                  </Td>
+
+                  <Td className="hidden lg:table-cell">
+                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-lg">{book.type ?? "—"}</span>
+                  </Td>
+
+                  <Td className="hidden lg:table-cell">
+                    <div className="flex flex-wrap gap-1">
+                      {(book.genres ?? []).slice(0, 2).map(g => (
+                        <span key={g.id} className="text-[11px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded-md">{g.nama}</span>
+                      ))}
+                      {(book.genres ?? []).length > 2 && (
+                        <span className="text-[11px] text-gray-400">+{book.genres.length - 2}</span>
+                      )}
+                    </div>
+                  </Td>
+
+                  <Td>
+                    <button onClick={() => onViewChapters(book)}
+                      className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-900 hover:bg-gray-100 px-2 py-1 rounded-lg transition-colors">
+                      <BookOpen className="w-3.5 h-3.5" />
+                      {book.chapters?.length ?? 0}
+                    </button>
+                  </Td>
+
+                  <Td className="text-right">
+                    <div className="flex items-center justify-end gap-1.5">
+                      <Link to={DETAIL_PAGE} params={{ id: book.id.toString() }}>
+                        <ActionBtn onClick={() => { }} title="Lihat detail">
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </ActionBtn>
+                      </Link>
+                      <ActionBtn onClick={() => onEdit(book)} title="Edit buku">
+                        <Edit className="w-3.5 h-3.5" />
+                      </ActionBtn>
+                      <ActionBtn onClick={() => setDeleteId(book.id)} variant="danger" title="Hapus buku">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </ActionBtn>
+                    </div>
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Pagination */}
+      <Pagination {...pagination} onPageChange={onPageChange} onLimitChange={onLimitChange} isFetching={isFetching} />
+
+      {/* Confirm delete */}
+      <ConfirmDelete
+        open={deleteId !== null}
+        title="Hapus Buku?"
+        description="Tindakan ini tidak dapat dibatalkan. Semua chapter dalam buku ini juga akan ikut terhapus."
+        onConfirm={() => { if (deleteId) { onDelete(deleteId); setDeleteId(null); } }}
+        onCancel={() => setDeleteId(null)}
+      />
+    </div>
+  );
 }

@@ -64,6 +64,26 @@ export async function getGenres() {
   return { data, success: true };
 }
 
+export async function getGenresPaged(page = 1, limit = 10) {
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
+
+  const { data, error, count } = await supabase
+    .from('Genre')
+    .select('*', { count: 'exact' })
+    .order('created_at', { ascending: false })
+    .range(from, to);
+
+  if (error) throw new Error(error.message);
+
+  const total = count ?? 0;
+  return {
+    data: data ?? [],
+    meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    success: true,
+  };
+}
+
 export async function getGenreById(id: number) {
   const { data, error } = await supabase
     .from('Genre')
@@ -125,7 +145,8 @@ export async function getBooks(page = 1, limit = 10, sortBy: 'desc' | 'asc' = 'd
     .from('Book')
     .select(`
       *,
-      genres:_BookGenre(genre:Genre(*))
+      genres:_BookGenre(genre:Genre(*)),
+      chapters:Chapter(id, chapter, volume, nama, created_at)
     `, { count: 'exact' })
     .order('created_at', { ascending: sortBy === 'asc' })
     .range(from, to);
@@ -173,14 +194,15 @@ export async function searchBooks(
       *,
       genres:_BookGenre(
         genre:Genre(*)
-      )
+      ),
+      chapters:Chapter(id, chapter, volume, nama, created_at)
     `, { count: 'exact' })
     .order('created_at', { ascending: false })
     .range(from, to);
 
   if (searchQuery) {
     query = query.or(
-      `judul.ilike.%${searchQuery}%,alt_judul.ilike.%${searchQuery}%`
+      `judul.ilike.%${searchQuery}%,alt_judul.ilike.%${searchQuery}%,author.ilike.%${searchQuery}%,artist.ilike.%${searchQuery}%`
     );
   }
 

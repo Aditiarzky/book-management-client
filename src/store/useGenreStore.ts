@@ -1,81 +1,85 @@
-import { create } from 'zustand';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
-  getGenres,
   createGenre,
-  updateGenre,
   deleteGenre,
+  getGenres,
+  updateGenre,
 } from '../utils/api';
 import getErrorMessage from '../utils/error';
 import type { IGenre } from '@/types/core.types';
 
-interface GenreStore {
-  genres: IGenre[];
-  loading: boolean;
-  fetchGenres: () => Promise<void>;
-  addGenre: (data: IGenre) => Promise<void>;
-  editGenre: (id: number, data: IGenre) => Promise<void>;
-  removeGenre: (id: number) => Promise<void>;
-}
+export const genreKeys = {
+  all: ['genres'] as const,
+  list: () => [...genreKeys.all, 'list'] as const,
+};
 
-const useGenreStore = create<GenreStore>((set) => ({
-  genres: [],
-  loading: false,
+const useGenreStore = () => {
+  const queryClient = useQueryClient();
 
-  fetchGenres: async () => {
-    set({ loading: true });
-    try {
-      const { data } = await getGenres();
-      set({ genres: data });
-    } catch (error) {
-      toast.error(getErrorMessage(error));
-    } finally {
-      set({ loading: false });
-    }
-  },
+  const genreQuery = useQuery({
+    queryKey: genreKeys.list(),
+    queryFn: getGenres,
+    staleTime: 5 * 60 * 1000,
+  });
 
-  addGenre: async (data) => {
-    set({ loading: true });
-    try {
-      const result = await createGenre(data);
-      set((state) => ({ genres: [result.data, ...state.genres] }));
+  const createMutation = useMutation({
+    mutationFn: (payload: IGenre) => createGenre(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: genreKeys.list() });
       toast.success('Genre berhasil ditambahkan');
-    } catch (error) {
+    },
+    onError: (error) => {
       toast.error(getErrorMessage(error));
-    } finally {
-      set({ loading: false });
-    }
-  },
+    },
+  });
 
-  editGenre: async (id, data) => {
-    set({ loading: true });
-    try {
-      const result = await updateGenre(id, data);
-      set((state) => ({
-        genres: state.genres.map((g) => (g.id === id ? result.data : g)),
-      }));
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: IGenre }) => updateGenre(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: genreKeys.list() });
       toast.success('Genre berhasil diperbarui');
-    } catch (error) {
+    },
+    onError: (error) => {
       toast.error(getErrorMessage(error));
-    } finally {
-      set({ loading: false });
-    }
-  },
+    },
+  });
 
-  removeGenre: async (id) => {
-    set({ loading: true });
-    try {
-      await deleteGenre(id);
-      set((state) => ({
-        genres: state.genres.filter((g) => g.id !== id),
-      }));
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => deleteGenre(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: genreKeys.list() });
       toast.success('Genre berhasil dihapus');
-    } catch (error) {
+    },
+    onError: (error) => {
       toast.error(getErrorMessage(error));
-    } finally {
-      set({ loading: false });
-    }
-  },
-}));
+    },
+  });
+
+  return {
+    genres: genreQuery.data?.data ?? [],
+    loading:
+      genreQuery.isLoading ||
+      createMutation.isPending ||
+      updateMutation.isPending ||
+      deleteMutation.isPending,
+
+    fetchGenres: async () => {
+      await queryClient.invalidateQueries({ queryKey: genreKeys.list() });
+    },
+
+    addGenre: async (data: IGenre) => {
+      await createMutation.mutateAsync(data);
+    },
+
+    editGenre: async (id: number, data: IGenre) => {
+      await updateMutation.mutateAsync({ id, data });
+    },
+
+    removeGenre: async (id: number) => {
+      await deleteMutation.mutateAsync(id);
+    },
+  };
+};
 
 export default useGenreStore;

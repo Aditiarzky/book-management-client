@@ -1,161 +1,114 @@
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { Edit, Trash2, Plus, Search } from "lucide-react"
-import type { IGenre } from "../../../types/core.types"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { useState } from "react";
+import { Edit, Trash2, Plus } from "lucide-react";
+import type { IGenre } from "../../../types/core.types";
+import { SearchInput, TableSkeleton, EmptyState, Pagination, ConfirmDelete, Th, Td, ActionBtn } from "@/components/admin/ui";
 
 interface GenresTableProps {
-  genres: IGenre[]
-  loading: boolean
-  onAdd: () => void
-  onEdit: (genre: IGenre) => void
-  onDelete: (id: number) => void
+  genres: IGenre[];
+  loading: boolean;
+  isFetching?: boolean;
+  pagination: { page: number; limit: number; total: number; totalPages: number };
+  onPageChange: (p: number) => void;
+  onLimitChange: (l: number) => void;
+  onAdd: () => void;
+  onEdit: (g: IGenre) => void;
+  onDelete: (id: number) => void;
 }
 
-export default function GenresTable({ genres, loading, onAdd, onEdit, onDelete }: GenresTableProps) {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [deleteId, setDeleteId] = useState<number | null>(null)
+export default function GenresTable({ genres, loading, isFetching, pagination, onPageChange, onLimitChange, onAdd, onEdit, onDelete }: GenresTableProps) {
+  const [search, setSearch] = useState("");
+  const [deleteId, setDeleteId] = useState<number | null>(null);
 
-  const filteredGenres = genres.filter(
-    (genre) =>
-      genre.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (genre.deskripsi && genre.deskripsi.toLowerCase().includes(searchTerm.toLowerCase())),
-  )
+  const filtered = genres.filter(g =>
+    g.nama.toLowerCase().includes(search.toLowerCase()) ||
+    (g.deskripsi?.toLowerCase().includes(search.toLowerCase()) ?? false)
+  );
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <CardTitle>Manage Genres</CardTitle>
-          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input
-                placeholder="Search genres..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 w-full sm:w-64"
-              />
-            </div>
-            <Button onClick={onAdd} className="flex items-center gap-2">
-              <Plus className="w-4 h-4" />
-              Add Genre
-            </Button>
-          </div>
+    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+      {/* Header */}
+      <div className="flex flex-col gap-3 p-5 border-b border-gray-100 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-[15px] font-semibold text-gray-900">Kelola Genre</h2>
+          <p className="text-xs text-gray-400 mt-0.5">{pagination.total} genre terdaftar</p>
         </div>
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-600 mx-auto" />
-            <p className="mt-2 text-gray-600">Loading...</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-20">ID</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Created Date</TableHead>
-                  <TableHead className="w-28">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredGenres.map((genre) => (
-                  <TableRow key={genre.id} className="transition-colors">
-                    <TableCell>{genre.id}</TableCell>
-                    <TableCell>
-                      <div className="font-medium">{genre.nama}</div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="max-w-xs truncate">
-                        {genre.deskripsi || <span className="text-gray-400">No description</span>}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm text-gray-600">{new Date(genre.created_at).toLocaleDateString()}</div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button variant="outline" size="sm" onClick={() => onEdit(genre)}>
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Edit Genre</TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setDeleteId(genre.id!)}
-                                className="text-red-600 hover:text-red-700"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Delete Genre</TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            {filteredGenres.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
-                {searchTerm ? "No genres found" : "No genres available"}
-              </div>
-            )}
-          </div>
-        )}
-      </CardContent>
+        <div className="flex gap-2">
+          <SearchInput value={search} onChange={setSearch} placeholder="Cari genre..." className="w-full sm:w-48" />
+          <button onClick={onAdd}
+            className="h-9 px-3.5 rounded-xl bg-gray-900 hover:bg-gray-800 text-white text-sm font-medium flex items-center gap-1.5 shrink-0 transition-colors">
+            <Plus className="w-3.5 h-3.5" /> Tambah
+          </button>
+        </div>
+      </div>
 
-      <AlertDialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Genre</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this genre? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (deleteId) {
-                  onDelete(deleteId)
-                  setDeleteId(null)
-                }
-              }}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </Card>
-  )
+      {/* Table */}
+      <div className="overflow-x-auto">
+        {loading ? (
+          <TableSkeleton rows={5} cols={4} />
+        ) : filtered.length === 0 ? (
+          <EmptyState message={search ? "Tidak ada genre yang cocok" : "Belum ada genre"} />
+        ) : (
+          <table className="w-full">
+            <thead className="bg-gray-50/70 border-b border-gray-100">
+              <tr>
+                <Th className="w-14">ID</Th>
+                <Th>Nama</Th>
+                <Th className="hidden sm:table-cell">Deskripsi</Th>
+                <Th className="hidden md:table-cell">Dibuat</Th>
+                <Th className="text-right">Aksi</Th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {filtered.map(genre => (
+                <tr key={genre.id} className="hover:bg-gray-50/50 transition-colors">
+                  <Td>
+                    <span className="text-xs font-mono text-gray-400">#{genre.id}</span>
+                  </Td>
+                  <Td>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-800">{genre.nama}</p>
+                      {/* Mobile description */}
+                      {genre.deskripsi && (
+                        <p className="text-xs text-gray-400 mt-0.5 truncate max-w-[200px] sm:hidden">{genre.deskripsi}</p>
+                      )}
+                    </div>
+                  </Td>
+                  <Td className="hidden sm:table-cell">
+                    <p className="text-sm text-gray-500 truncate max-w-xs">
+                      {genre.deskripsi || <span className="text-gray-300 italic">Tidak ada deskripsi</span>}
+                    </p>
+                  </Td>
+                  <Td className="hidden md:table-cell">
+                    <span className="text-xs text-gray-400">
+                      {new Date(genre.created_at).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+                    </span>
+                  </Td>
+                  <Td className="text-right">
+                    <div className="flex items-center justify-end gap-1.5">
+                      <ActionBtn onClick={() => onEdit(genre)} title="Edit genre">
+                        <Edit className="w-3.5 h-3.5" />
+                      </ActionBtn>
+                      <ActionBtn onClick={() => setDeleteId(genre.id!)} variant="danger" title="Hapus genre">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </ActionBtn>
+                    </div>
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <Pagination {...pagination} onPageChange={onPageChange} onLimitChange={onLimitChange} isFetching={isFetching} />
+
+      <ConfirmDelete
+        open={deleteId !== null}
+        title="Hapus Genre?"
+        description="Genre yang dihapus tidak dapat dikembalikan. Buku yang menggunakan genre ini tidak akan ikut terhapus."
+        onConfirm={() => { if (deleteId) { onDelete(deleteId); setDeleteId(null); } }}
+        onCancel={() => setDeleteId(null)}
+      />
+    </div>
+  );
 }
