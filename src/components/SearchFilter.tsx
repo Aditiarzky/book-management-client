@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -19,15 +19,11 @@ export interface SearchFiltersType {
 }
 
 export default function SearchFilters({ onSearch, loading }: SearchFiltersProps) {
-  const { genres, fetchGenres, loading: isLoadingGenres } = useGenreStore()
+  const { genres, loading: isLoadingGenres } = useGenreStore()
   const [searchQuery, setSearchQuery] = useState("")
   const [creator, setCreator] = useState("")
   const [selectedGenres, setSelectedGenres] = useState<number[]>([])
   const [showFilters, setShowFilters] = useState(false)
-
-  useEffect(() => {
-    fetchGenres()
-  }, [fetchGenres])
 
   const handleSearch = () => {
     onSearch({
@@ -124,9 +120,9 @@ export default function SearchFilters({ onSearch, loading }: SearchFiltersProps)
                     {genres?.map((genre) => (
                       <Badge
                         key={genre.id}
-                        variant={selectedGenres.includes(genre.id|| 1) ? "default" : "outline"}
+                        variant={selectedGenres.includes(genre.id || 1) ? "default" : "outline"}
                         className="cursor-pointer hover:bg-blue-100 transition-colors"
-                        onClick={() => handleGenreToggle(genre.id|| 1)}
+                        onClick={() => handleGenreToggle(genre.id || 1)}
                       >
                         {genre.nama}
                       </Badge>

@@ -1,5 +1,4 @@
 
-import { useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { BookOpen, FileText, Tags, TrendingUp } from "lucide-react"
 import useBookStore from "@/store/useBookStore"
@@ -7,15 +6,9 @@ import useChapterStore from "@/store/useChapterStore"
 import useGenreStore from "@/store/useGenreStore"
 
 export default function DashboardStats() {
-  const { books, fetchBooks } = useBookStore()
-  const { chapters, fetchChapters } = useChapterStore()
-  const { genres, fetchGenres } = useGenreStore()
-
-  useEffect(() => {
-    fetchBooks(1, 100)
-    fetchChapters(1, 100)
-    fetchGenres()
-  }, [fetchBooks, fetchChapters, fetchGenres])
+  const { books } = useBookStore()
+  const { chapters } = useChapterStore()
+  const { genres } = useGenreStore()
 
   const stats = [
     {

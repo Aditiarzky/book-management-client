@@ -21,7 +21,7 @@ interface BookFormProps {
 }
 
 export default function BookForm({ book, onSubmit, onCancel, loading }: BookFormProps) {
-  const { genres, fetchGenres } = useGenreStore();
+  const { genres } = useGenreStore();
   const { uploadFile, loading: uploadLoading } = useUpFile();
   const [formData, setFormData] = useState({
     judul: "",
@@ -35,10 +35,6 @@ export default function BookForm({ book, onSubmit, onCancel, loading }: BookForm
     genreIds: [] as number[],
   });
   const [coverProgress, setCoverProgress] = useState<number | null>(null);
-
-  useEffect(() => {
-    fetchGenres();
-  }, [fetchGenres]);
 
   useEffect(() => {
     if (book) {
@@ -130,42 +126,42 @@ export default function BookForm({ book, onSubmit, onCancel, loading }: BookForm
           </div>
 
           <div className="space-y-2">
-              <Label htmlFor="cover-upload" className="">Cover Image *</Label>
-              <div className="flex items-center flex-col gap-2">
-                <Input
-                  id="cover-upload"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleCoverUpload}
-                  disabled={uploadLoading}
-                  className="cursor-pointer"
-                />
-                {uploadLoading && coverProgress !== null && (
-                  <Progress value={coverProgress} className="w-full h-2 bg-gray-200" />
-                )}
-              </div>
+            <Label htmlFor="cover-upload" className="">Cover Image *</Label>
+            <div className="flex items-center flex-col gap-2">
               <Input
-                id="cover"
-                value={formData.cover}
-                onChange={(e) => setFormData((prev) => ({ ...prev, cover: e.target.value }))}
-                placeholder="Or enter cover URL manually"
-                required
-                className={`bg-white border-gray-300 ${formData.cover ? "" : "border-red-500"}`}
+                id="cover-upload"
+                type="file"
+                accept="image/*"
+                onChange={handleCoverUpload}
+                disabled={uploadLoading}
+                className="cursor-pointer"
               />
-              {!formData.cover && <p className="text-xs text-red-500">Cover image is required</p>}
-              {formData.cover && (
-                <div className="mt-2">
-                  <img
-                    src={formData.cover || "/placeholder.svg"}
-                    alt="Cover Preview"
-                    className="w-32 h-48 object-cover rounded border border-gray-300 transition-transform duration-200 hover:scale-105"
-                    onError={(e) => {
-                      e.currentTarget.src = "/placeholder.svg?height=192&width=128";
-                    }}
-                  />
-                </div>
+              {uploadLoading && coverProgress !== null && (
+                <Progress value={coverProgress} className="w-full h-2 bg-gray-200" />
               )}
             </div>
+            <Input
+              id="cover"
+              value={formData.cover}
+              onChange={(e) => setFormData((prev) => ({ ...prev, cover: e.target.value }))}
+              placeholder="Or enter cover URL manually"
+              required
+              className={`bg-white border-gray-300 ${formData.cover ? "" : "border-red-500"}`}
+            />
+            {!formData.cover && <p className="text-xs text-red-500">Cover image is required</p>}
+            {formData.cover && (
+              <div className="mt-2">
+                <img
+                  src={formData.cover || "/placeholder.svg"}
+                  alt="Cover Preview"
+                  className="w-32 h-48 object-cover rounded border border-gray-300 transition-transform duration-200 hover:scale-105"
+                  onError={(e) => {
+                    e.currentTarget.src = "/placeholder.svg?height=192&width=128";
+                  }}
+                />
+              </div>
+            )}
+          </div>
 
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -208,7 +204,7 @@ export default function BookForm({ book, onSubmit, onCancel, loading }: BookForm
             <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
               <Select
-                value={formData.status ? formData.status : book?.status||''}
+                value={formData.status ? formData.status : book?.status || ''}
                 onValueChange={(value) => setFormData((prev) => ({ ...prev, status: value }))}
               >
                 <SelectTrigger id="status">
@@ -225,7 +221,7 @@ export default function BookForm({ book, onSubmit, onCancel, loading }: BookForm
             <div className="space-y-2">
               <Label htmlFor="type">Type</Label>
               <Select
-                value={formData.type ? formData.type : book?.type||''}
+                value={formData.type ? formData.type : book?.type || ''}
                 defaultValue={formData.type}
                 onValueChange={(value) => setFormData((prev) => ({ ...prev, type: value }))}
               >

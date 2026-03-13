@@ -2,15 +2,13 @@ import { Ch } from '@/components/NewCh';
 import type { IBook } from '@/types/core.types';
 import { useState } from 'react';
 import SupabaseCommentEmbed from '@/components/SupabaseCommentEmbed';
+import LikeButton from '@/components/LikeButton';
 import { AlertCircle, RefreshCw, BookOpen, Users, Palette, Tag, ArrowUpDown, ChevronDown, MessageSquare, Info, List } from 'lucide-react';
 
 interface DetailInterface {
   book: IBook | null;
 }
 
-/* ─────────────────────────────────────────────
-   EMPTY STATE
-───────────────────────────────────────────── */
 const EmptyState = ({ title, description, onRefresh }: {
   title: string;
   description: string;
@@ -31,9 +29,6 @@ const EmptyState = ({ title, description, onRefresh }: {
   </div>
 );
 
-/* ─────────────────────────────────────────────
-   STATUS BADGE
-───────────────────────────────────────────── */
 const StatusBadge = ({ status }: { status?: string }) => {
   const map: Record<string, string> = {
     ongoing: 'bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
@@ -50,9 +45,6 @@ const StatusBadge = ({ status }: { status?: string }) => {
   );
 };
 
-/* ─────────────────────────────────────────────
-   CHAPTER LIST TAB
-───────────────────────────────────────────── */
 const ChapterList = ({ book }: { book: IBook }) => {
   const [sortOrder, setSortOrder] = useState<'ascending' | 'descending'>(() =>
     (localStorage.getItem('sortOrder') as 'ascending' | 'descending') || 'ascending'
@@ -75,7 +67,6 @@ const ChapterList = ({ book }: { book: IBook }) => {
 
   return (
     <div>
-      {/* Sort control */}
       <div className="flex items-center justify-between mb-5">
         <p className="text-gray-500 dark:text-white/30 text-xs font-medium">
           {sorted.length} chapter
@@ -92,8 +83,6 @@ const ChapterList = ({ book }: { book: IBook }) => {
           ))}
         </div>
       </div>
-
-      {/* Chapter grid */}
       <div className="flex flex-wrap justify-center gap-2">
         {sorted.map(chapter => (
           <div key={chapter.id} className="drop-shadow-sm">
@@ -114,9 +103,6 @@ const ChapterList = ({ book }: { book: IBook }) => {
   );
 };
 
-/* ─────────────────────────────────────────────
-   INFO TAB
-───────────────────────────────────────────── */
 const InfoTab = ({ book }: { book: IBook }) => {
   const [synopsisExpanded, setSynopsisExpanded] = useState(false);
   const synopsis = book.synopsis || '';
@@ -124,7 +110,6 @@ const InfoTab = ({ book }: { book: IBook }) => {
 
   return (
     <div className="space-y-6">
-      {/* Meta rows */}
       <div className="rounded-2xl bg-gray-50 dark:bg-white/3 border border-gray-100 dark:border-white/5 overflow-hidden">
         {[
           { icon: BookOpen, label: 'Alt Title', value: book.alt_judul },
@@ -139,8 +124,6 @@ const InfoTab = ({ book }: { book: IBook }) => {
             <span className="text-gray-700 dark:text-white/70 text-sm break-words flex-1">{value || '—'}</span>
           </div>
         ))}
-
-        {/* Genre row */}
         <div className="flex items-start gap-4 px-5 py-3.5 border-t border-gray-100 dark:border-white/5">
           <div className="flex items-center gap-2 w-20 shrink-0 mt-0.5">
             <Tag className="h-3.5 w-3.5 text-gray-300 dark:text-white/20 shrink-0" />
@@ -156,8 +139,6 @@ const InfoTab = ({ book }: { book: IBook }) => {
           </div>
         </div>
       </div>
-
-      {/* Synopsis */}
       <div>
         <p className="text-gray-800 dark:text-white/70 text-sm font-semibold mb-3 uppercase tracking-widest text-xs">Synopsis</p>
         <div className="relative">
@@ -181,15 +162,11 @@ const InfoTab = ({ book }: { book: IBook }) => {
   );
 };
 
-/* ─────────────────────────────────────────────
-   MAIN NAV TABS
-───────────────────────────────────────────── */
 function NavDetail({ book }: DetailInterface) {
   const [tab, setTab] = useState<'chapters' | 'info'>('chapters');
 
   return (
     <div className="mt-6">
-      {/* Tab switcher */}
       <div className="flex justify-center mb-6">
         <div className="flex items-center gap-1 p-1 bg-gray-100 dark:bg-white/5 rounded-2xl">
           {([
@@ -206,8 +183,6 @@ function NavDetail({ book }: DetailInterface) {
           ))}
         </div>
       </div>
-
-      {/* Tab content */}
       {tab === 'chapters' && (
         book ? <ChapterList book={book} /> : (
           <EmptyState title="No Book Data" description="Data buku tidak ditemukan." onRefresh={() => window.location.reload()} />
@@ -222,9 +197,6 @@ function NavDetail({ book }: DetailInterface) {
   );
 }
 
-/* ─────────────────────────────────────────────
-   MAIN EXPORT
-───────────────────────────────────────────── */
 export default function DetailComponent({ book }: DetailInterface) {
   const supabaseConfigured = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
   const commentSlug = book ? `book-${book.id}` : 'book-unknown';
@@ -234,10 +206,9 @@ export default function DetailComponent({ book }: DetailInterface) {
       <main className="w-full max-w-3xl mx-auto px-4">
 
         {/* ── Hero cover ── */}
-        <section className="mb-8">
+        <section className="mb-2">
           {book ? (
             <>
-              {/* Blurred banner */}
               <div className="relative h-44 w-full rounded-b-3xl overflow-hidden -mx-4 px-4"
                 style={{ width: 'calc(100% + 2rem)' }}>
                 <div
@@ -247,7 +218,6 @@ export default function DetailComponent({ book }: DetailInterface) {
                 <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/40 to-white dark:to-gray-950" />
               </div>
 
-              {/* Cover card — overlapping banner */}
               <div className="relative flex flex-col items-center -mt-28 z-10">
                 <div className="relative">
                   <img
@@ -255,7 +225,6 @@ export default function DetailComponent({ book }: DetailInterface) {
                     alt={book.judul || 'Cover'}
                     className="w-36 h-52 object-cover rounded-2xl shadow-2xl ring-2 ring-white dark:ring-gray-950"
                   />
-                  {/* Type badge on cover */}
                   {book.type && (
                     <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-gray-900 text-white text-xs font-semibold whitespace-nowrap shadow-lg">
                       {book.type}
@@ -263,7 +232,6 @@ export default function DetailComponent({ book }: DetailInterface) {
                   )}
                 </div>
 
-                {/* Title & meta */}
                 <div className="text-center mt-5 px-4">
                   <h1 className="text-xl font-bold text-gray-900 dark:text-white leading-tight mb-1">
                     {book.judul || 'Unknown Title'}
@@ -271,7 +239,7 @@ export default function DetailComponent({ book }: DetailInterface) {
                   <p className="text-gray-400 dark:text-white/40 text-sm mb-3">
                     {[book.author, book.artist].filter(Boolean).join(' · ') || 'Unknown'}
                   </p>
-                  <div className="flex flex-wrap items-center justify-center gap-2">
+                  <div className="flex flex-wrap items-center justify-center gap-2 mt-3 mb-4">
                     <StatusBadge status={book.status || 'unknown'} />
                     {(book.genres || []).slice(0, 3).map(g => (
                       <span key={g.nama}
@@ -283,6 +251,9 @@ export default function DetailComponent({ book }: DetailInterface) {
                       <span className="text-gray-400 dark:text-white/25 text-xs">+{book.genres.length - 3}</span>
                     )}
                   </div>
+
+                  {/* ── Like button ── */}
+                  <LikeButton type="book" targetId={book.id} variant="book" />
                 </div>
               </div>
             </>
@@ -294,6 +265,11 @@ export default function DetailComponent({ book }: DetailInterface) {
             />
           )}
         </section>
+
+        {/* ── Divider ── */}
+        {book && (
+          <div className="my-6 mx-auto w-16 h-px bg-gray-100 dark:bg-white/5" />
+        )}
 
         {/* ── Tabs ── */}
         <NavDetail book={book} />

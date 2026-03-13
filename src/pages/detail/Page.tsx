@@ -7,25 +7,20 @@ import Sekeleton from "@/components/Sekeleton";
 import { setMetaTags } from "@/utils/meta";
 
 export default function Detail() {
-  const { fetchBookById, loading: loadingBook, detailBook } = useBookStore();
   const { id } = useParams({ strict: false });
-  const idToNumber = id || '';
-  const parseId = parseInt(idToNumber, 10);
+  const parseId = parseInt(id || '', 10);
+  const { loading: loadingBook, detailBook } = useBookStore({ detailBookId: parseId });
 
   useEffect(() => {
-    fetchBookById(parseId);
-  }, [fetchBookById, parseId]);
-
-  useEffect(()=>{
-    if(detailBook && !loadingBook){
+    if (detailBook && !loadingBook) {
       setMetaTags({
-      title: `Baca ${detailBook.judul} terbaru | Riztranslation`,
-      description: detailBook.synopsis || `Baca ${detailBook.judul} terbaru di website Riztranslation`,
-      image: detailBook.cover || 'https://i.imgur.com/uaZ4pwN.jpeg',
-      url: window.location.href,
-    })
+        title: `Baca ${detailBook.judul} terbaru | Riztranslation`,
+        description: detailBook.synopsis || `Baca ${detailBook.judul} terbaru di website Riztranslation`,
+        image: detailBook.cover || 'https://i.imgur.com/uaZ4pwN.jpeg',
+        url: window.location.href,
+      });
     }
-  })
+  }, [detailBook, loadingBook]);
 
   return (
     <GuestLayout>
@@ -37,12 +32,12 @@ export default function Detail() {
             </div>
           </Sekeleton>
           <div className="pt-24 w-full flex flex-col gap-2 items-center justify-center">
-            <Sekeleton width="146px" height="20px"/>
-            <Sekeleton width="146px" height="15px" className="opacity-80"/>
+            <Sekeleton width="146px" height="20px" />
+            <Sekeleton width="146px" height="15px" className="opacity-80" />
           </div>
         </div>
-      ) : ( 
-        <DetailComponent book={detailBook} /> 
+      ) : (
+        <DetailComponent book={detailBook} />
       )}
     </GuestLayout>
   );

@@ -29,18 +29,16 @@ export default function AdminPage() {
   const [editingGenre, setEditingGenre] = useState<IGenre | null>(null);
   const [selectedBook, setSelectedBook] = useState<IBook | null>(null);
 
-  const { books, loading: booksLoading, fetchBooks, addBook, editBook, removeBook } = useBookStore();
+  const { books, loading: booksLoading, addBook, editBook, removeBook } = useBookStore();
   const {
     chapters,
     chapterByBook,
     loading: chaptersLoading,
-    fetchChapters,
-    fetchByBook,
     addChapter,
     editChapter,
     removeChapter,
-  } = useChapterStore();
-  const { genres, loading: genresLoading, fetchGenres, addGenre, editGenre, removeGenre } = useGenreStore();
+  } = useChapterStore({ selectedBookId: selectedBook?.id });
+  const { genres, loading: genresLoading, addGenre, editGenre, removeGenre } = useGenreStore();
   const { isAuthenticated, isLoading, fetchUser } = useAuthStore(); // Ambil state dan fungsi dari auth store
 
   // Panggil fetchUser saat komponen dimuat untuk memeriksa status autentikasi
@@ -48,18 +46,9 @@ export default function AdminPage() {
     fetchUser();
   }, [fetchUser]);
 
-  // Ambil data buku, bab, dan genre hanya jika pengguna terautentikasi
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchBooks();
-      fetchChapters();
-      fetchGenres();
-    }
-  }, [isAuthenticated, fetchBooks, fetchChapters, fetchGenres]);
-
   // Jika masih loading, tampilkan indikator loading
   if (isLoading) {
-    return <div className="flex justify-center items-center h-screen gap-2">Loading... <Loader2 className="w-5 animate-spin"/></div>;
+    return <div className="flex justify-center items-center h-screen gap-2">Loading... <Loader2 className="w-5 animate-spin" /></div>;
   }
 
   // Jika tidak terautentikasi, alihkan ke halaman login
@@ -88,7 +77,7 @@ export default function AdminPage() {
       setShowBookForm(false);
       setEditingBook(null);
     } catch (error) {
-      toast.error("Failed to save book: "+error);
+      toast.error("Failed to save book: " + error);
     }
   };
 
@@ -96,14 +85,13 @@ export default function AdminPage() {
     try {
       await removeBook(id);
     } catch (error) {
-      toast.error("Failed to delete book: "+error);
+      toast.error("Failed to delete book: " + error);
     }
   };
 
   const handleViewChapters = (book: IBook) => {
     setSelectedBook(book);
     setActiveTab("chapters");
-    fetchByBook(book.id);
   };
 
   // Chapter handlers
@@ -126,22 +114,16 @@ export default function AdminPage() {
       }
       setShowChapterForm(false);
       setEditingChapter(null);
-      if (selectedBook) {
-        fetchByBook(selectedBook.id);
-      }
     } catch (error) {
-      toast.error("Failed to save chapter: "+error);
+      toast.error("Failed to save chapter: " + error);
     }
   };
 
   const handleDeleteChapter = async (id: number) => {
     try {
       await removeChapter(id);
-      if (selectedBook) {
-        fetchByBook(selectedBook.id);
-      }
     } catch (error) {
-      toast.error("Failed to delete chapter: "+error);
+      toast.error("Failed to delete chapter: " + error);
     }
   };
 
@@ -171,7 +153,7 @@ export default function AdminPage() {
       setShowGenreForm(false);
       setEditingGenre(null);
     } catch (error) {
-      toast.error("Failed to save genre: "+error);
+      toast.error("Failed to save genre: " + error);
     }
   };
 
@@ -179,7 +161,7 @@ export default function AdminPage() {
     try {
       await removeGenre(id);
     } catch (error) {
-      toast.error("Failed to delete genre: "+error);
+      toast.error("Failed to delete genre: " + error);
     }
   };
 

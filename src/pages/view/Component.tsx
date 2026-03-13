@@ -4,9 +4,10 @@ import {
   ChevronLeft, ChevronRight, CloudAlert, LibraryBig,
   RefreshCw, Home, Settings, BookOpen,
   Moon, Sun, ZoomIn, ZoomOut,
-  ArrowUp, MessageSquare, List, X
+  ArrowUp, MessageSquare, MessageCircle, List, X
 } from 'lucide-react';
 import SupabaseCommentEmbed from '@/components/SupabaseCommentEmbed';
+import LikeButton from '@/components/LikeButton';
 import type { IBook, IChapter } from '@/types/core.types';
 import { DETAIL_PAGE, VIEW_PAGE, SEARCH_PAGE } from '@/routes/constants';
 import { Progress } from '@/components/ui/progress';
@@ -14,17 +15,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Search } from 'lucide-react';
 import { useTheme } from '@/context/ThemeContext';
 
-/* ─────────────────────────────────────────────
-   TYPES
-───────────────────────────────────────────── */
-// 'dark' | 'light' sync dengan Navigation via useTheme() (ThemeContext)
-// 'sepia' adalah mode khusus reader, disimpan di localStorage['r-sepia']
 type Theme = 'dark' | 'light' | 'sepia';
 type FontSize = 'text-sm' | 'text-base' | 'text-lg' | 'text-xl' | 'text-2xl';
 
-/* ─────────────────────────────────────────────
-   EMPTY STATES
-───────────────────────────────────────────── */
 const EmptyChapterState = ({ onRefresh, onGoHome }: { onRefresh?: () => void; onGoHome?: () => void }) => (
   <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-6 py-16">
     <div className="w-20 h-20 rounded-2xl bg-gray-100 dark:bg-white/5 flex items-center justify-center mb-6">
@@ -61,9 +54,6 @@ const EmptyContentState = ({ chapterName, onRefresh }: { chapterName: string; on
   </div>
 );
 
-/* ─────────────────────────────────────────────
-   IMAGE BLOCK
-───────────────────────────────────────────── */
 const ImageBlock = ({ image, alt, zoom }: { image: string; alt: string; zoom: number }) => {
   const canvasRefs = useRef<(HTMLCanvasElement | null)[]>([]);
   const [loadedCount, setLoadedCount] = useState(0);
@@ -75,7 +65,6 @@ const ImageBlock = ({ image, alt, zoom }: { image: string; alt: string; zoom: nu
   }, [image]);
 
   const onLoad = (i: number) => { setLoadedCount(p => p + 1); setStates(p => ({ ...p, [i]: 'loaded' })); };
-
   const onError = (i: number, url: string) => {
     setStates(p => ({ ...p, [i]: 'error' }));
     const canvas = canvasRefs.current[i];
@@ -115,9 +104,6 @@ const ImageBlock = ({ image, alt, zoom }: { image: string; alt: string; zoom: nu
   );
 };
 
-/* ─────────────────────────────────────────────
-   SETTINGS PANEL
-───────────────────────────────────────────── */
 const SettingsPanel = ({ isOpen, onClose, theme, setTheme, fontSize, setFontSize, zoom, setZoom }: {
   isOpen: boolean; onClose: () => void; theme: Theme; setTheme: (t: Theme) => void;
   fontSize: FontSize; setFontSize: (f: FontSize) => void; zoom: number; setZoom: (z: number) => void;
@@ -186,9 +172,6 @@ const SettingsPanel = ({ isOpen, onClose, theme, setTheme, fontSize, setFontSize
   </>
 );
 
-/* ─────────────────────────────────────────────
-   CHAPTER DRAWER
-───────────────────────────────────────────── */
 const ChapterDrawer = ({ isOpen, onClose, chapters, currentId, bookId, navigate }: {
   isOpen: boolean; onClose: () => void; chapters: IChapter[];
   currentId: number; bookId: number; navigate: ReturnType<typeof useNavigate>;
@@ -215,9 +198,6 @@ const ChapterDrawer = ({ isOpen, onClose, chapters, currentId, bookId, navigate 
   </>
 );
 
-/* ─────────────────────────────────────────────
-   READING PROGRESS LINE
-───────────────────────────────────────────── */
 const ReadingProgressLine = () => {
   const [p, setP] = useState(0);
   useEffect(() => {
@@ -228,9 +208,6 @@ const ReadingProgressLine = () => {
   return <div className="h-0.5 bg-gray-100 dark:bg-transparent"><div className="h-full bg-red-500 transition-[width] duration-75" style={{ width: `${p}%` }} /></div>;
 };
 
-/* ─────────────────────────────────────────────
-   TOP BAR
-───────────────────────────────────────────── */
 const ReaderTopBar = ({ chapter, konten, isVisible, onSettings, onChapterList }: {
   chapter: IChapter; konten: IBook | null; isVisible: boolean;
   onSettings: () => void; onChapterList: () => void;
@@ -266,20 +243,16 @@ const ReaderTopBar = ({ chapter, konten, isVisible, onSettings, onChapterList }:
   </header>
 );
 
-/* ─────────────────────────────────────────────
-   BOTTOM NAV
-───────────────────────────────────────────── */
-const BottomNav = ({ chapter, konten, prevChapter, nextChapter, listCh, isVisible, navigate }: {
+const BottomNav = ({ chapter, konten, prevChapter, nextChapter, listCh, isVisible, navigate, onScrollToComments }: {
   chapter: IChapter; konten: IBook | null; prevChapter: IChapter | null; nextChapter: IChapter | null;
   listCh: IChapter[]; isVisible: boolean; navigate: ReturnType<typeof useNavigate>;
+  onScrollToComments: () => void;
 }) => {
   const [sel, setSel] = useState(chapter?.id.toString());
   useEffect(() => setSel(chapter?.id.toString()), [chapter?.id]);
   const go = (id: string) => {
     setSel(id);
-    if (konten?.id) {
-      navigate({ to: VIEW_PAGE, params: { bookId: konten.id.toString(), id } });
-    }
+    if (konten?.id) navigate({ to: VIEW_PAGE, params: { bookId: konten.id.toString(), id } });
   };
 
   return (
@@ -307,9 +280,16 @@ const BottomNav = ({ chapter, konten, prevChapter, nextChapter, listCh, isVisibl
             </Select>
           </div>
           <Link to={DETAIL_PAGE} params={{ id: konten?.id.toString() ?? '' }}
-            className="flex items-center justify-center w-9 h-9 rounded-xl bg-gray-50 dark:bg-white/3 border border-gray-200 dark:border-white/8 text-gray-400 dark:text-white/30 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/6 transition-all shrink-0">
+            className="flex items-center justify-center w-9 h-9 rounded-xl bg-gray-50 dark:bg-white/3 border border-gray-200 dark:border-white/8 text-gray-400 dark:text-white/30 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/6 transition-all shrink-0"
+            title="Halaman buku">
             <LibraryBig className="h-4 w-4" />
           </Link>
+          <button
+            onClick={onScrollToComments}
+            className="flex items-center justify-center w-9 h-9 rounded-xl bg-gray-50 dark:bg-white/3 border border-gray-200 dark:border-white/8 text-gray-400 dark:text-white/30 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/6 transition-all shrink-0"
+            title="Lihat komentar">
+            <MessageCircle className="h-4 w-4" />
+          </button>
           <button disabled={!nextChapter}
             onClick={() => nextChapter && konten && navigate({ to: VIEW_PAGE, params: { bookId: konten.id.toString(), id: nextChapter.id.toString() } })}
             className="flex items-center gap-1 px-3 h-9 rounded-xl text-xs font-medium border transition-all disabled:opacity-25 disabled:cursor-not-allowed bg-red-500 border-red-500 text-white hover:bg-red-600 shrink-0">
@@ -321,9 +301,6 @@ const BottomNav = ({ chapter, konten, prevChapter, nextChapter, listCh, isVisibl
   );
 };
 
-/* ─────────────────────────────────────────────
-   MAIN EXPORT
-───────────────────────────────────────────── */
 export default function ViewComponent({ viewChapter, chapterByBook }: { viewChapter: IChapter | null; chapterByBook: IChapter[] }) {
   const [fontSize, setFontSize] = useState<FontSize>('text-base');
   const [zoom, setZoom] = useState(100);
@@ -332,17 +309,19 @@ export default function ViewComponent({ viewChapter, chapterByBook }: { viewChap
   const [barsVisible, setBarsVisible] = useState(true);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const lastY = useRef(0);
+  const commentRef = useRef<HTMLElement>(null);
   const navigate = useNavigate();
+
+  const scrollToComments = () => {
+    commentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
   const supabaseConfigured = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
 
-  // Theme: pakai useTheme() — sama persis dengan Navigation
-  // Sepia adalah mode tambahan khusus reader
   const { theme: globalTheme, setTheme: setGlobalTheme } = useTheme();
   const [isSepiaModeActive, setIsSepiaModeActive] = useState<boolean>(
     () => localStorage.getItem('r-sepia') === 'true'
   );
 
-  // theme yang digunakan di reader = sepia jika aktif, else ikut globalTheme
   const theme: Theme = isSepiaModeActive ? 'sepia' : (globalTheme as 'dark' | 'light');
 
   const setTheme = (t: Theme) => {
@@ -352,11 +331,10 @@ export default function ViewComponent({ viewChapter, chapterByBook }: { viewChap
     } else {
       setIsSepiaModeActive(false);
       localStorage.removeItem('r-sepia');
-      setGlobalTheme(t); // update ThemeContext → sync ke Navigation & <html>
+      setGlobalTheme(t);
     }
   };
 
-  // Load reader-specific prefs
   useEffect(() => {
     setFontSize((localStorage.getItem('r-fontSize') as FontSize) || 'text-base');
     setZoom(Number(localStorage.getItem('r-zoom')) || 100);
@@ -365,7 +343,6 @@ export default function ViewComponent({ viewChapter, chapterByBook }: { viewChap
   useEffect(() => { localStorage.setItem('r-fontSize', fontSize); }, [fontSize]);
   useEffect(() => { localStorage.setItem('r-zoom', zoom.toString()); }, [zoom]);
 
-  // Hide global nav & footer — reader has its own
   useEffect(() => {
     const nav = document.querySelector('nav') as HTMLElement | null;
     const footer = document.querySelector('footer') as HTMLElement | null;
@@ -377,7 +354,6 @@ export default function ViewComponent({ viewChapter, chapterByBook }: { viewChap
     };
   }, []);
 
-  // Scroll: auto-hide bars
   useEffect(() => {
     const fn = () => {
       const y = window.scrollY;
@@ -395,7 +371,6 @@ export default function ViewComponent({ viewChapter, chapterByBook }: { viewChap
     [chapterByBook]
   );
 
-  // Keyboard shortcuts
   useEffect(() => {
     if (!viewChapter) return;
     const idx = sorted.findIndex(c => c.id === viewChapter.id);
@@ -417,8 +392,6 @@ export default function ViewComponent({ viewChapter, chapterByBook }: { viewChap
   const idx = sorted.findIndex(c => c.id === viewChapter.id);
   const prevChapter = idx > 0 ? sorted[idx - 1] : null;
   const nextChapter = idx < sorted.length - 1 ? sorted[idx + 1] : null;
-
-  // Sepia override: dark/light sepenuhnya dari Tailwind dark: class (sync Navigation)
   const isSepia = isSepiaModeActive;
 
   return (
@@ -449,7 +422,6 @@ export default function ViewComponent({ viewChapter, chapterByBook }: { viewChap
       <ChapterDrawer isOpen={chapterDrawerOpen} onClose={() => setChapterDrawerOpen(false)}
         chapters={sorted} currentId={viewChapter.id} bookId={viewChapter.bookId} navigate={navigate} />
 
-      {/* Scroll to top */}
       <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
         className={`fixed right-4 bottom-16 z-30 w-9 h-9 flex items-center justify-center rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-white/10 text-gray-400 dark:text-white/30 hover:text-gray-700 dark:hover:text-white shadow-sm transition-all duration-300 ${showScrollTop ? 'opacity-50 translate-y-0' : 'opacity-0 translate-y-3 pointer-events-none'}`}>
         <ArrowUp className="h-4 w-4" />
@@ -522,8 +494,15 @@ export default function ViewComponent({ viewChapter, chapterByBook }: { viewChap
           </div>
         </div>
 
+        {/* ── Like section — di atas komentar ── */}
+        <div className="max-w-lg mx-auto px-4 mt-12">
+          <div className="rounded-2xl border border-gray-100 dark:border-white/5 bg-gray-50/60 dark:bg-white/[0.02] overflow-hidden">
+            <LikeButton type="chapter" targetId={viewChapter.id} variant="chapter" />
+          </div>
+        </div>
+
         {/* Comments */}
-        <section className="max-w-3xl mx-auto px-4 py-12">
+        <section ref={commentRef} className="max-w-3xl mx-auto px-4 py-10 mt-2">
           <div className="flex items-center gap-3 mb-6">
             <MessageSquare className="h-4 w-4 text-gray-300 dark:text-white/15" />
             <span className="text-gray-400 dark:text-white/25 text-xs font-semibold uppercase tracking-widest">Komentar</span>
@@ -538,14 +517,14 @@ export default function ViewComponent({ viewChapter, chapterByBook }: { viewChap
           )}
         </section>
 
-        {/* Simple footer */}
         <div className="border-t border-gray-100 dark:border-white/5 py-6 text-center">
           <p className="text-gray-300 dark:text-white/15 text-xs">© {new Date().getFullYear()} Riztranslation</p>
         </div>
       </main>
 
       <BottomNav chapter={viewChapter} konten={viewChapter.book} prevChapter={prevChapter}
-        nextChapter={nextChapter} listCh={sorted} isVisible={barsVisible} navigate={navigate} />
+        nextChapter={nextChapter} listCh={sorted} isVisible={barsVisible} navigate={navigate}
+        onScrollToComments={scrollToComments} />
     </div>
   );
 }

@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { useDebounce } from "use-debounce";
 import { setMetaTags } from "@/utils/meta";
 
-// Komponen Skeleton untuk loading state
 const BookCardSkeleton = () => (
   <div className="bg-white rounded-lg shadow-md overflow-hidden animate-pulse">
     <div className="h-64 bg-gray-200"></div>
@@ -20,14 +19,13 @@ const BookCardSkeleton = () => (
   </div>
 );
 
-// Komponen Empty State untuk hasil pencarian
-const EmptySearchState = ({ 
-  searchQuery, 
-  onResetFilters, 
-  onGoHome 
-}: { 
-  searchQuery: string; 
-  onResetFilters?: () => void; 
+const EmptySearchState = ({
+  searchQuery,
+  onResetFilters,
+  onGoHome,
+}: {
+  searchQuery: string;
+  onResetFilters?: () => void;
   onGoHome?: () => void;
 }) => (
   <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -38,17 +36,6 @@ const EmptySearchState = ({
     <p className="text-gray-600 mb-6 max-w-md mx-auto">
       We couldn't find any books matching "<span className="font-medium">{searchQuery}</span>"
     </p>
-    
-    <div className="bg-blue-50 p-4 rounded-lg mb-6 max-w-md mx-auto">
-      <p className="text-sm text-blue-800 font-medium mb-2">💡 Search tips:</p>
-      <ul className="text-sm text-blue-700 space-y-1 text-left">
-        <li>• Use more general keywords</li>
-        <li>• Check the spelling of keywords</li>
-        <li>• Try different filter combinations</li>
-        <li>• Use fewer filters to broaden your search</li>
-      </ul>
-    </div>
-    
     <div className="flex gap-3">
       {onResetFilters && (
         <Button onClick={onResetFilters} variant="outline" className="flex items-center gap-2">
@@ -66,7 +53,6 @@ const EmptySearchState = ({
   </div>
 );
 
-// Komponen Empty State untuk halaman pencarian sebelum melakukan pencarian
 const InitialSearchState = () => (
   <div className="flex flex-col items-center justify-center py-12 text-center">
     <div className="bg-gray-100 p-6 rounded-full w-24 h-24 mx-auto mb-6 flex items-center justify-center">
@@ -76,21 +62,10 @@ const InitialSearchState = () => (
     <p className="text-gray-600 mb-6 max-w-md mx-auto">
       Use the search bar and filters above to find books you're interested in.
     </p>
-    
-    <div className="bg-blue-50 p-4 rounded-lg mb-6 max-w-md mx-auto">
-      <p className="text-sm text-blue-800 font-medium mb-2">🔍 What can you search for?</p>
-      <ul className="text-sm text-blue-700 space-y-1 text-left">
-        <li>• Book titles and authors</li>
-        <li>• Specific genres or categories</li>
-        <li>• Creators or translators</li>
-        <li>• Keywords related to the content</li>
-      </ul>
-    </div>
   </div>
 );
 
 export default function SearchPage() {
-  const { searchResults, loading, isLoadingNextSearch, searchMeta, searchBook, loadMoreSearch } = useBookStore();
   const [hasSearched, setHasSearched] = useState(false);
   const [filters, setFilters] = useState<SearchFiltersType>({
     searchQuery: "",
@@ -98,10 +73,18 @@ export default function SearchPage() {
     genreIds: [],
   });
   const [debouncedFilters] = useDebounce(filters, 500);
-  const navigate = useNavigate();
 
-  // 🔥 PERBAIKAN UTAMA: Pastikan `searchResults` selalu sebuah array
-  // Jika `searchResults` dari store adalah `undefined`, gunakan array kosong `[]` sebagai gantinya.
+  const { searchResults, loading, isLoadingNextSearch, searchMeta, loadMoreSearch } = useBookStore({
+    searchParams: {
+      searchQuery: debouncedFilters.searchQuery || "",
+      limit: 20,
+      creator: debouncedFilters.creator || "",
+      genreIds: debouncedFilters.genreIds,
+    },
+    searchEnabled: hasSearched,
+  });
+
+  const navigate = useNavigate();
   const results = searchResults || [];
 
   const handleSearch = async (newFilters: SearchFiltersType) => {
@@ -110,28 +93,9 @@ export default function SearchPage() {
   };
 
   const handleResetFilters = () => {
-    setFilters({
-      searchQuery: "",
-      creator: "",
-      genreIds: [],
-    });
+    setFilters({ searchQuery: "", creator: "", genreIds: [] });
     setHasSearched(false);
   };
-
-  const handleGoHome = () => {
-    navigate({ to: "/" });
-  };
-
-  useEffect(() => {
-    searchBook(
-      debouncedFilters.searchQuery || undefined,
-      1,
-      20,
-      debouncedFilters.creator || undefined,
-      debouncedFilters.genreIds.length > 0 ? debouncedFilters.genreIds : undefined,
-      false
-    );
-  }, [debouncedFilters, searchBook]);
 
   useEffect(() => {
     if (!loading) {
@@ -144,8 +108,7 @@ export default function SearchPage() {
     }
   }, [debouncedFilters, loading]);
 
-  // 🔥 PERBAIKAN: Tambahkan pengecekan untuk `searchMeta` agar aman
-  const canLoadMore = searchMeta && searchMeta.page < searchMeta.totalPages;
+  const canLoadMore = !!searchMeta && searchMeta.page < searchMeta.totalPages;
 
   return (
     <div className="min-h-screen">
@@ -154,50 +117,34 @@ export default function SearchPage() {
         <div className="mb-6">
           {loading && !isLoadingNextSearch ? (
             <div className="flex items-center justify-center py-12">
-              <div className="text-center">
-                <Loader className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600" />
-                <p className="text-gray-600">Searching for books...</p>
-              </div>
+              <Loader className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600" />
             </div>
           ) : (
             <>
               {hasSearched && (
                 <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-2">
+                  <span className="text-gray-600 flex items-center gap-2">
                     <BookOpen className="w-5 h-5 text-gray-500" />
-                    {/* 🔥 PERBAIKAN: Gunakan variabel `results` yang sudah aman */}
-                    <span className="text-gray-600">
-                      {results.length > 0 ? `Found ${results.length} books` : "No books found"}
-                    </span>
-                  </div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={handleResetFilters}
-                    className="text-gray-500 hover:text-gray-700"
-                  >
-                    <RefreshCw className="w-4 h-4 mr-1" />
-                    Reset
+                    {results.length > 0 ? `Found ${results.length} books` : "No books found"}
+                  </span>
+                  <Button variant="ghost" size="sm" onClick={handleResetFilters}>
+                    <RefreshCw className="w-4 h-4 mr-1" /> Reset
                   </Button>
                 </div>
               )}
 
-              {/* 🔥 PERBAIKAN: Gunakan variabel `results` yang sudah aman */}
               {results.length > 0 ? (
                 <>
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-                    {/* 🔥 PERBAIKAN: Gunakan variabel `results` yang sudah aman */}
                     {results.map((book) => (
                       <BookCard
                         key={book.id}
                         book={book}
-                        onClick={() => {
-                          navigate({ to: `/detail/${book.id}` });
-                        }}
+                        onClick={() => navigate({ to: `/detail/${book.id}` })}
                       />
                     ))}
                   </div>
-                  
+
                   {isLoadingNextSearch && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 mt-6">
                       {Array.from({ length: 5 }).map((_, i) => (
@@ -205,34 +152,20 @@ export default function SearchPage() {
                       ))}
                     </div>
                   )}
-                  
+
                   {canLoadMore && (
                     <div className="text-center mt-6">
-                      <Button
-                        variant="outline"
-                        onClick={() =>
-                          loadMoreSearch(
-                            filters.searchQuery || undefined,
-                            filters.creator || undefined,
-                            filters.genreIds.length > 0 ? filters.genreIds : undefined
-                          )
-                        }
-                        disabled={isLoadingNextSearch}
-                      >
-                        {isLoadingNextSearch ? (
-                          <Loader className="h-4 w-4 animate-spin" />
-                        ) : (
-                          "Load More"
-                        )}
+                      <Button variant="outline" onClick={() => loadMoreSearch()} disabled={isLoadingNextSearch}>
+                        {isLoadingNextSearch ? <Loader className="h-4 w-4 animate-spin" /> : "Load More"}
                       </Button>
                     </div>
                   )}
                 </>
               ) : hasSearched ? (
-                <EmptySearchState 
-                  searchQuery={filters.searchQuery || "your search"} 
+                <EmptySearchState
+                  searchQuery={filters.searchQuery || "your search"}
                   onResetFilters={handleResetFilters}
-                  onGoHome={handleGoHome}
+                  onGoHome={() => navigate({ to: "/" })}
                 />
               ) : (
                 <InitialSearchState />

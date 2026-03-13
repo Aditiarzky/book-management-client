@@ -4,7 +4,6 @@ import { KontenCard } from '../../components/Card';
 import useChapterStore from '../../store/useChapterStore';
 import useBookStore from '../../store/useBookStore';
 import NewCh from "../../components/NewCh";
-import { useEffect } from 'react';
 
 /* ─────────────────────────────────────────────
    SKELETON
@@ -145,15 +144,8 @@ const SectionHeader = ({ icon: Icon, title }: { icon: React.ComponentType<{ clas
    HOME
 ───────────────────────────────────────────── */
 export default function HomeComponent() {
-  const { latestChapters: chapters, loading: loadingCh, fetchLatestChapters, resetChaptersState } = useChapterStore();
-  const { books, loading: loadingBook, isLoadingNextPage, meta, loadMoreBooks, fetchBooks, resetBooksState } = useBookStore();
-
-  useEffect(() => {
-    resetBooksState();
-    fetchBooks(1, 10, false);
-    resetChaptersState();
-    fetchLatestChapters(1, 10, false);
-  }, [fetchBooks, fetchLatestChapters, resetBooksState, resetChaptersState]);
+  const { latestChapters: chapters, loading: loadingCh } = useChapterStore();
+  const { books, loading: loadingBook, isLoadingNextPage, meta, loadMoreBooks } = useBookStore();
 
   return (
     <main className="w-full max-w-6xl mx-auto px-4 py-4 space-y-10">
