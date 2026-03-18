@@ -693,9 +693,15 @@ export default function SupabaseCommentEmbed({ site, slug, title = 'Komentar' }:
       const { data } = await supabase
         .from('comment_reactions')
         .insert({ comment_id: commentId, user_id: user.id, emoji })
-        .select('id, comment_id, user_id, emoji, profiles(full_name)')
+        .select('id, comment_id, user_id, emoji')  // ← hapus profiles(full_name)
         .single()
-      if (data) setReactions(prev => [...prev, data as unknown as Reaction])
+      if (data) {
+        // Tambahkan nama dari displayName yang sudah ada
+        setReactions(prev => [...prev, {
+          ...data,
+          profiles: { full_name: displayName },
+        } as Reaction])
+      }
     }
     setOpenReactionPicker(null)
   }
