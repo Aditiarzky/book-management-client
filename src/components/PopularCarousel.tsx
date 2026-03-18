@@ -209,13 +209,13 @@ export default function PopularCarousel() {
           <>
             <button
               onClick={() => swiperRef.current?.slidePrev()}
-              className="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-xl bg-black/30 hover:bg-black/50 backdrop-blur-sm flex items-center justify-center text-white/70 hover:text-white transition-all"
+              className="hidden sm:flex absolute left-3 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-xl bg-black/30 hover:bg-black/50 backdrop-blur-sm items-center justify-center text-white/70 hover:text-white transition-all"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
             <button
               onClick={() => swiperRef.current?.slideNext()}
-              className="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-xl bg-black/30 hover:bg-black/50 backdrop-blur-sm flex items-center justify-center text-white/70 hover:text-white transition-all"
+              className="hidden sm:flex absolute right-3 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-xl bg-black/30 hover:bg-black/50 backdrop-blur-sm items-center justify-center text-white/70 hover:text-white transition-all"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
