@@ -1,9 +1,10 @@
-import { BookOpenText, Facebook, AlertCircle, RefreshCw, Loader, ChevronDown } from "lucide-react";
+import { BookOpenText, Facebook, AlertCircle, RefreshCw, Loader, ChevronDown, Library } from "lucide-react";
 import type { IChapter } from '../../types/core.types';
 import { KontenCard } from '../../components/Card';
 import useChapterStore from '../../store/useChapterStore';
 import useBookStore from '../../store/useBookStore';
 import NewCh from "../../components/NewCh";
+import PopularCarousel from "../../components/PopularCarousel";
 
 /* ─────────────────────────────────────────────
    SKELETON
@@ -25,7 +26,9 @@ const ChapterCardSkeleton = () => (
 /* ─────────────────────────────────────────────
    EMPTY STATE
 ───────────────────────────────────────────── */
-export const EmptyState = ({ title, description, icon: Icon = AlertCircle, onRefresh }: {
+export const EmptyState = ({
+  title, description, icon: Icon = AlertCircle, onRefresh,
+}: {
   title: string;
   description: string;
   icon?: React.ComponentType<{ className?: string }>;
@@ -38,8 +41,10 @@ export const EmptyState = ({ title, description, icon: Icon = AlertCircle, onRef
     </div>
     <p className="text-gray-500 dark:text-white/30 text-sm mb-4 max-w-xs">{description}</p>
     {onRefresh && (
-      <button onClick={onRefresh}
-        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-500 dark:text-white/40 text-sm transition-all">
+      <button
+        onClick={onRefresh}
+        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-500 dark:text-white/40 text-sm transition-all"
+      >
         <RefreshCw className="h-3.5 w-3.5" /> Refresh
       </button>
     )}
@@ -130,7 +135,12 @@ export const ChCorner = ({ chapters, loading }: { chapters: IChapter[]; loading:
 /* ─────────────────────────────────────────────
    SECTION HEADER
 ───────────────────────────────────────────── */
-const SectionHeader = ({ icon: Icon, title }: { icon: React.ComponentType<{ className?: string }>; title: string }) => (
+const SectionHeader = ({
+  icon: Icon, title,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+}) => (
   <div className="flex items-center gap-3 mb-4">
     <div className="w-8 h-8 rounded-xl bg-gray-100 dark:bg-white/5 flex items-center justify-center">
       <Icon className="h-4 w-4 text-gray-500 dark:text-white/40" />
@@ -148,10 +158,16 @@ export default function HomeComponent() {
   const { books, loading: loadingBook, isLoadingNextPage, meta, loadMoreBooks } = useBookStore();
 
   return (
-    <main className="w-full max-w-6xl mx-auto px-4 py-4 space-y-10">
+    <main className="w-full max-w-6xl mx-auto px-4 py-4 space-y-8">
 
-      {/* ── Book shelf ── */}
+      {/* ── 1. Popular books hero carousel ── */}
       <section>
+        <PopularCarousel />
+      </section>
+
+      {/* ── 2. Book shelf (semua buku, swiper horizontal) ── */}
+      <section>
+        <SectionHeader icon={Library} title="Semua Buku" />
         <KontenCard
           loadMoreBooks={loadMoreBooks}
           loading={loadingBook}
@@ -161,13 +177,13 @@ export default function HomeComponent() {
         />
       </section>
 
-      {/* ── Latest chapters ── */}
+      {/* ── 3. Latest chapters ── */}
       <section>
         <SectionHeader icon={BookOpenText} title="Chapter Terbaru" />
         <ChCorner loading={loadingCh} chapters={chapters || []} />
       </section>
 
-      {/* ── Facebook ── */}
+      {/* ── 4. Facebook ── */}
       <section>
         <SectionHeader icon={Facebook} title="Facebook Page" />
         <FbPage />

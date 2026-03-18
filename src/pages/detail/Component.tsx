@@ -199,7 +199,7 @@ function NavDetail({ book }: DetailInterface) {
 
 export default function DetailComponent({ book }: DetailInterface) {
   const supabaseConfigured = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
-  const commentSlug = book ? `book-${book.id}` : 'book-unknown';
+  const commentSlug = book ? `${book.id}` : 'unknown';
 
   return (
     <div className="min-h-dvh">
@@ -283,7 +283,7 @@ export default function DetailComponent({ book }: DetailInterface) {
           <div className="flex-1 h-px bg-gray-100 dark:bg-white/5" />
         </div>
         {supabaseConfigured ? (
-          <SupabaseCommentEmbed site="book-detail" slug={commentSlug} title="Komentar Buku" />
+          <SupabaseCommentEmbed site="detail" slug={commentSlug} title="Komentar Buku" />
         ) : (
           <p className="text-gray-300 dark:text-white/15 text-xs text-center py-6">
             Set <code className="font-mono">VITE_SUPABASE_URL</code> dan <code className="font-mono">VITE_SUPABASE_ANON_KEY</code> untuk komentar.

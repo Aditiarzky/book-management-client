@@ -266,14 +266,22 @@ const BottomNav = ({ chapter, konten, prevChapter, nextChapter, listCh, isVisibl
           </button>
           <div className="flex-1">
             <Select value={sel} onValueChange={go}>
-              <SelectTrigger className="h-9 bg-gray-50 max-w-42 dark:bg-white/3 border-gray-200 dark:border-white/8 text-gray-500 dark:text-white/50 rounded-xl text-xs hover:bg-gray-100 dark:hover:bg-white/5 transition-all">
+              <SelectTrigger className="h-9 bg-gray-50 max-w-36 dark:bg-white/3 border-gray-200 dark:border-white/8 text-gray-500 dark:text-white/50 rounded-xl text-xs hover:bg-gray-100 dark:hover:bg-white/5 transition-all">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-white dark:bg-[#111114] border-gray-100 dark:border-white/10 text-gray-600 dark:text-white/50 max-h-56">
                 {listCh.map(ch => (
-                  <SelectItem key={ch.id} value={ch.id.toString()} className="text-xs">
-                    {ch.volume ? `Vol ${ch.volume} Ch ${ch.chapter}` : `Ch ${ch.chapter}`}
-                    {ch.nama && <span className="opacity-50 ml-1">· {ch.nama}</span>}
+                  <SelectItem key={ch.id} value={ch.id.toString()} className="text-xs max-w-72">
+                    <div className="flex items-center truncate max-w-64">
+                      <span className="shrink-0">
+                        {ch.volume ? `Vol ${ch.volume} Ch ${ch.chapter}` : `Ch ${ch.chapter}`}
+                      </span>
+                      {ch.nama && (
+                        <span className="opacity-50 ml-1 truncate">
+                          · {ch.nama}
+                        </span>
+                      )}
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -509,7 +517,7 @@ export default function ViewComponent({ viewChapter, chapterByBook }: { viewChap
             <div className="flex-1 h-px bg-gray-100 dark:bg-white/5" />
           </div>
           {supabaseConfigured ? (
-            <SupabaseCommentEmbed site="chapter" slug={`${viewChapter.bookId}-${viewChapter.id}`} title="Komentar Chapter" />
+            <SupabaseCommentEmbed site="view" slug={`${viewChapter.bookId}/${viewChapter.id}`} title="Komentar Chapter" />
           ) : (
             <p className="text-gray-300 dark:text-white/15 text-xs text-center py-6">
               Set <code className="font-mono">VITE_SUPABASE_URL</code> dan <code className="font-mono">VITE_SUPABASE_ANON_KEY</code> untuk komentar.

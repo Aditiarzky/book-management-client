@@ -118,37 +118,36 @@
     @apply bg-background text-foreground;
   }
   html {
-      font-family: "Red Hat Text";
-      scroll-behavior: smooth;
-      scrollbar-width:thin ;
+    font-family: "Red Hat Text";
+    scroll-behavior: smooth;
+    scrollbar-width: thin;
   }
-  button{
+  button {
     cursor: pointer;
   }
 }
 
 ::-webkit-scrollbar {
-    width: 10px;
-  }
+  width: 10px;
+}
 
 .hov-b:hover {
-    filter: brightness(80%);
-    transition: all 0.3s;
-    cursor: pointer;
+  filter: brightness(80%);
+  transition: all 0.3s;
+  cursor: pointer;
 }
-
 .logo-img {
-    background-image: url(https://i.imgur.com/NRwzhgD.png);
-    background-position: center;
-    background-size: contain;
-    background-repeat: no-repeat;
-    filter: invert(100%);
+  background-image: url(https://i.imgur.com/NRwzhgD.png);
+  background-position: center;
+  background-size: contain;
+  background-repeat: no-repeat;
+  filter: invert(100%);
 }
 .logo-img-2 {
-    background-image: url(https://i.imgur.com/NRwzhgD.png);
-    background-position: center;
-    background-size: contain;
-    background-repeat: no-repeat;
+  background-image: url(https://i.imgur.com/NRwzhgD.png);
+  background-position: center;
+  background-size: contain;
+  background-repeat: no-repeat;
 }
 
 .skeleton {

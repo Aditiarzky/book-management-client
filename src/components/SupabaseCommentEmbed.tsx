@@ -1,3 +1,4 @@
+/** eslint-disable no-useless-escape */
 /** eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
@@ -6,7 +7,6 @@ import { supabase } from '@/lib/supabaseClient'
 import {
   Ban,
   CheckCircle2,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   ImageIcon,
@@ -25,6 +25,8 @@ import {
   Clock,
   ArrowUpCircleIcon,
   SortAsc,
+  Quote,
+  SmilePlus,
 } from 'lucide-react'
 import { COMMENT_RETURN_TO_KEY } from '@/constants/supabase-comments'
 import { Button } from './ui/button'
@@ -54,9 +56,10 @@ type Reaction = {
   comment_id: string
   user_id: string
   emoji: string
+  profiles?: { full_name: string | null } | null
 }
 
-type ReactionSummary = Record<string, { count: number; reacted: boolean }>
+type ReactionSummary = Record<string, { count: number; reacted: boolean; names: string[] }>
 
 const EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '😡']
 
@@ -78,7 +81,7 @@ type SupabaseUser = {
   [key: string]: any
 }
 
-const PAGE_SIZE = 5
+const PAGE_SIZE = 10
 
 function getProfileValue(profile?: Profile | Profile[] | null): Profile | null {
   if (!profile) return null
@@ -147,7 +150,6 @@ function extractYtUrlFromContent(content: string): string | null {
 }
 
 function renderInline(input: string): ReactNode[] {
-  // Skip [yt](...) blocks — rendered separately as music player
   const cleaned = input.replace(/\[yt\]\([^)]+\)/g, '')
   const parts = cleaned.split(/(\|\|[^|]+\|\||!?\[[^\]]*\]\([^\)]+\)|https?:\/\/\S+)/g)
   return parts.filter(Boolean).map((part, index) => {
@@ -157,38 +159,23 @@ function renderInline(input: string): ReactNode[] {
       const src = imageMatch[2].trim()
       if (isValidHttpUrl(src))
         return (
-          <img
-            key={index}
-            src={src}
-            alt={imageMatch[1] || 'gambar komentar'}
-            className="my-3 max-h-72 w-auto rounded-xl border border-zinc-200 dark:border-zinc-800"
-            loading="lazy"
-          />
+          <img key={index} src={src} alt={imageMatch[1] || 'gambar komentar'}
+            className="my-3 max-h-72 w-auto rounded-xl border border-zinc-200 dark:border-zinc-800" loading="lazy" />
         )
     }
     const linkMatch = part.match(/^\[([^\]]+)\]\(([^\)]+)\)$/)
     if (linkMatch && isValidHttpUrl(linkMatch[2].trim())) {
       return (
-        <a
-          key={index}
-          href={linkMatch[2].trim()}
-          target="_blank"
-          rel="noreferrer"
-          className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 underline underline-offset-2"
-        >
+        <a key={index} href={linkMatch[2].trim()} target="_blank" rel="noreferrer"
+          className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 underline underline-offset-2">
           {linkMatch[1]}
         </a>
       )
     }
     if (/^https?:\/\//.test(part) && isValidHttpUrl(part)) {
       return (
-        <a
-          key={index}
-          href={part}
-          target="_blank"
-          rel="noreferrer"
-          className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 underline underline-offset-2"
-        >
+        <a key={index} href={part} target="_blank" rel="noreferrer"
+          className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 underline underline-offset-2">
           {part}
         </a>
       )
@@ -206,6 +193,53 @@ function renderCommentContent(content: string) {
   ))
 }
 
+function stripMarkup(content: string): string {
+  return content
+    .replace(/\[yt\]\([^)]+\)/g, '[musik]')
+    .replace(/!\[[^\]]*\]\([^)]+\)/g, '[gambar]')
+    .replace(/\[[^\]]+\]\([^)]+\)/g, (m) => {
+      const label = m.match(/^\[([^\]]+)\]/)?.[1]
+      return label ?? m
+    })
+    .replace(/\|\|([^|]+)\|\|/g, '[spoiler]')
+    .replace(/\n+/g, ' ')
+    .trim()
+}
+
+/* ── Reactor names tooltip ── */
+function ReactorTooltip({ names, currentUserId, reactorUserIds }: {
+  names: string[]
+  currentUserId?: string | null
+  reactorUserIds: string[]
+}) {
+  if (names.length === 0) return null
+
+  const meIndex = reactorUserIds.indexOf(currentUserId ?? '')
+  const reordered = meIndex !== -1
+    ? ['Kamu', ...names.filter((_, i) => i !== meIndex)]
+    : names
+
+  let label = ''
+  if (reordered.length === 1) {
+    label = reordered[0]
+  } else if (reordered.length === 2) {
+    label = `${reordered[0]} dan ${reordered[1]}`
+  } else if (reordered.length <= 4) {
+    label = `${reordered.slice(0, -1).join(', ')}, dan ${reordered[reordered.length - 1]}`
+  } else {
+    label = `${reordered.slice(0, 3).join(', ')}, dan ${reordered.length - 3} lainnya`
+  }
+
+  return (
+    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-50 pointer-events-none">
+      <div className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[11px] rounded-lg px-2.5 py-1.5 whitespace-nowrap max-w-[200px] text-center leading-snug shadow-lg">
+        {label}
+        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-zinc-900 dark:border-t-zinc-100" />
+      </div>
+    </div>
+  )
+}
+
 /* ── YouTube helpers ── */
 function extractYoutubeId(url: string): string | null {
   try {
@@ -217,11 +251,10 @@ function extractYoutubeId(url: string): string | null {
       const shorts = u.pathname.match(/\/shorts\/([^/?]+)/)
       if (shorts) return shorts[1]
     }
-  } catch { }
+  } catch { /* empty */ }
   return null
 }
 
-/* ── Inject YouTube IFrame API script once ── */
 let ytApiLoaded = false
 function ensureYtApi() {
   if (ytApiLoaded || typeof window === 'undefined') return
@@ -241,15 +274,9 @@ function formatTime(sec: number): string {
 }
 
 function MiniMusicPlayer({
-  url,
-  commentId,
-  activePlayer,
-  setActivePlayer,
+  url, commentId, activePlayer, setActivePlayer,
 }: {
-  url: string
-  commentId: string
-  activePlayer: string | null
-  setActivePlayer: (id: string | null) => void
+  url: string; commentId: string; activePlayer: string | null; setActivePlayer: (id: string | null) => void
 }) {
   const videoId = extractYoutubeId(url)
   const playerRef = useRef<any>(null)
@@ -266,13 +293,10 @@ function MiniMusicPlayer({
   const isActive = activePlayer === commentId
   const thumbnailUrl = videoId ? `https://img.youtube.com/vi/${videoId}/mqdefault.jpg` : ''
 
-  // Load YT API + create player when first activated
   useEffect(() => {
     if (!isActive || !videoId || playerRef.current) return
     ensureYtApi()
-
     const containerId = `yt-player-${commentId}`
-
     function createPlayer() {
       setLoading(true)
       playerRef.current = new (window as any).YT.Player(containerId, {
@@ -280,40 +304,27 @@ function MiniMusicPlayer({
         playerVars: { autoplay: 1, controls: 0, modestbranding: 1, rel: 0 },
         events: {
           onReady: (e: any) => {
-            setReady(true)
-            setLoading(false)
+            setReady(true); setLoading(false)
             setDuration(e.target.getDuration())
             setTitle(e.target.getVideoData()?.title ?? '')
           },
-          onStateChange: (e: any) => {
-            if (e.data === 0) setActivePlayer(null)
-          },
+          onStateChange: (e: any) => { if (e.data === 0) setActivePlayer(null) },
         },
       })
     }
-
     if ((window as any).YT?.Player) {
       createPlayer()
     } else {
       const prev = (window as any).onYouTubeIframeAPIReady
-        ; (window as any).onYouTubeIframeAPIReady = () => {
-          prev?.()
-          createPlayer()
-        }
+        ; (window as any).onYouTubeIframeAPIReady = () => { prev?.(); createPlayer() }
     }
-
-    return () => {
-      if (tickRef.current) clearInterval(tickRef.current)
-    }
-  }, [isActive, videoId, commentId])
+    return () => { if (tickRef.current) clearInterval(tickRef.current) }
+  }, [isActive, videoId, commentId, setActivePlayer])
 
   useEffect(() => {
     if (!playerRef.current || !ready) return
-    if (isActive) {
-      playerRef.current.playVideo?.()
-    } else {
-      playerRef.current.pauseVideo?.()
-    }
+    if (isActive) playerRef.current.playVideo?.()
+    else playerRef.current.pauseVideo?.()
   }, [isActive, ready])
 
   useEffect(() => {
@@ -329,11 +340,9 @@ function MiniMusicPlayer({
   }, [isActive, ready, dragging])
 
   const progress = duration > 0 ? (dragging ? dragVal : currentTime) / duration : 0
-
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = Number(e.target.value)
-    setDragVal(val)
-    setCurrentTime(val)
+    setDragVal(val); setCurrentTime(val)
     playerRef.current?.seekTo?.(val, true)
   }
 
@@ -344,71 +353,68 @@ function MiniMusicPlayer({
       <div className="flex items-center gap-3 p-2.5">
         <div className="relative shrink-0 w-10 h-10 rounded-xl overflow-hidden">
           <img src={thumbnailUrl} alt="cover" className="w-full h-full object-cover" />
-          <div
-            id={`yt-player-${commentId}`}
-            ref={containerRef}
-            style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none', top: 0, left: 0 }}
-          />
+          <div id={`yt-player-${commentId}`} ref={containerRef}
+            style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none', top: 0, left: 0 }} />
           {loading && (
             <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-xl">
               <Loader2 className="h-4 w-4 text-white animate-spin" />
             </div>
           )}
         </div>
-
         <div className="flex-1 min-w-0">
           <p className="text-xs font-medium text-zinc-700 dark:text-zinc-200 truncate leading-tight mb-1.5">
             {loading
               ? <span className="flex items-center gap-1.5 text-zinc-400"><Loader2 className="h-3 w-3 animate-spin" /> Memuat musik...</span>
-              : title
-                ? title
-                : <span className="flex items-center gap-1 text-zinc-400"><Music2 className="h-3 w-3 text-red-500" /> Music terlampir</span>
+              : title ? title : <span className="flex items-center gap-1 text-zinc-400"><Music2 className="h-3 w-3 text-red-500" /> Music terlampir</span>
             }
           </p>
-
           <div className="flex items-center gap-2">
             <span className="text-[10px] text-zinc-400 tabular-nums w-7 shrink-0">{formatTime(dragging ? dragVal : currentTime)}</span>
             <div className="relative flex-1 h-1 group">
               <div className={`absolute inset-y-0 w-full rounded-full ${loading ? 'bg-zinc-200 dark:bg-zinc-700 animate-pulse' : 'bg-zinc-200 dark:bg-zinc-700'}`} />
-              {!loading && (
-                <div
-                  className="absolute inset-y-0 left-0 bg-red-500 rounded-full transition-none"
-                  style={{ width: `${progress * 100}%` }}
-                />
-              )}
-              <input
-                type="range"
-                min={0}
-                max={duration || 100}
-                step={0.5}
-                value={dragging ? dragVal : currentTime}
-                onChange={handleSeek}
-                onMouseDown={() => { setDragging(true); setDragVal(currentTime) }}
-                onMouseUp={() => setDragging(false)}
-                onTouchStart={() => { setDragging(true); setDragVal(currentTime) }}
-                onTouchEnd={() => setDragging(false)}
+              {!loading && <div className="absolute inset-y-0 left-0 bg-red-500 rounded-full transition-none" style={{ width: `${progress * 100}%` }} />}
+              <input type="range" min={0} max={duration || 100} step={0.5}
+                value={dragging ? dragVal : currentTime} onChange={handleSeek}
+                onMouseDown={() => { setDragging(true); setDragVal(currentTime) }} onMouseUp={() => setDragging(false)}
+                onTouchStart={() => { setDragging(true); setDragVal(currentTime) }} onTouchEnd={() => setDragging(false)}
                 disabled={!ready || loading}
-                className="absolute inset-0 w-full opacity-0 cursor-pointer h-full disabled:cursor-not-allowed"
-              />
+                className="absolute inset-0 w-full opacity-0 cursor-pointer h-full disabled:cursor-not-allowed" />
             </div>
             <span className="text-[10px] text-zinc-400 tabular-nums w-7 shrink-0 text-right">{formatTime(duration)}</span>
           </div>
         </div>
-
-        <button
-          onClick={() => setActivePlayer(isActive ? null : commentId)}
-          disabled={loading}
-          className="shrink-0 w-8 h-8 flex items-center justify-center rounded-xl bg-red-500 hover:bg-red-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-        >
-          {loading
-            ? <Loader2 className="h-3.5 w-3.5 text-white animate-spin" />
-            : isActive
-              ? <Pause className="h-3.5 w-3.5 text-white" />
-              : <Play className="h-3.5 w-3.5 text-white fill-white" />
-          }
+        <button onClick={() => setActivePlayer(isActive ? null : commentId)} disabled={loading}
+          className="shrink-0 w-8 h-8 flex items-center justify-center rounded-xl bg-red-500 hover:bg-red-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
+          {loading ? <Loader2 className="h-3.5 w-3.5 text-white animate-spin" />
+            : isActive ? <Pause className="h-3.5 w-3.5 text-white" />
+              : <Play className="h-3.5 w-3.5 text-white fill-white" />}
         </button>
       </div>
     </div>
+  )
+}
+
+/* ── Quote Block Component ── */
+function QuoteBlock({ comment, onClick }: { comment: CommentItem; onClick: () => void }) {
+  const profile = getProfileValue(comment.profiles)
+  const authorName = profile?.full_name || comment.author
+  const preview = stripMarkup(comment.content)
+
+  return (
+    <button onClick={onClick} className="w-full text-left mb-3 group" title="Klik untuk melihat komentar asli">
+      <div className="flex gap-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-all">
+        <div className="shrink-0 w-0.5 rounded-full bg-blue-400 dark:bg-blue-500 self-stretch" />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 mb-0.5">
+            <Quote className="h-3 w-3 text-blue-400 dark:text-blue-500 shrink-0" />
+            <span className="text-xs font-medium text-blue-600 dark:text-blue-400 truncate">{authorName}</span>
+          </div>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2 leading-relaxed">
+            {preview || '...'}
+          </p>
+        </div>
+      </div>
+    </button>
   )
 }
 
@@ -423,23 +429,23 @@ export default function SupabaseCommentEmbed({ site, slug, title = 'Komentar' }:
   const [authError, setAuthError] = useState('')
   const [replyTarget, setReplyTarget] = useState<CommentItem | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
-  const [openReplies, setOpenReplies] = useState<Record<string, boolean>>({})
   const [activePlayer, setActivePlayer] = useState<string | null>(null)
   const [reactions, setReactions] = useState<Reaction[]>([])
   const [sortOrder, setSortOrder] = useState<'newest' | 'top'>('newest')
+  const [highlightId, setHighlightId] = useState<string | null>(null)
+  // key format: `${commentId}:${emoji}`
+  const [hoveredReaction, setHoveredReaction] = useState<string | null>(null)
 
   const [_openReactionPicker, setOpenReactionPicker] = useState<string | null>(null)
 
   const returnToKey = COMMENT_RETURN_TO_KEY
   const channelRef = useRef<RealtimeChannel | null>(null)
   const formRef = useRef<HTMLFormElement>(null)
+  const commentRefs = useRef<Record<string, HTMLElement | null>>({})
 
   async function fetchCurrentProfile(userId: string) {
-    const { data } = await supabase
-      .from('profiles')
-      .select('id, full_name, avatar_url, role, is_blocked')
-      .eq('id', userId)
-      .maybeSingle()
+    const { data } = await supabase.from('profiles')
+      .select('id, full_name, avatar_url, role, is_blocked').eq('id', userId).maybeSingle()
     setCurrentProfile(data ?? null)
   }
 
@@ -447,18 +453,38 @@ export default function SupabaseCommentEmbed({ site, slug, title = 'Komentar' }:
     const { data, error: fetchError } = await supabase
       .from('comments')
       .select('id, author, content, created_at, slug, parent_id, user_id, profiles(id, full_name, avatar_url, role, is_blocked)')
-      .eq('site', site)
-      .eq('slug', slug)
+      .eq('site', site).eq('slug', slug)
       .order('created_at', { ascending: true })
     if (fetchError) setError(fetchError.message)
     else setComments((data ?? []) as CommentItem[])
   }
 
   async function fetchReactions() {
-    const { data } = await supabase
+    const { data: reactionData } = await supabase
       .from('comment_reactions')
       .select('id, comment_id, user_id, emoji')
-    setReactions((data ?? []) as Reaction[])
+
+    if (!reactionData) { setReactions([]); return }
+
+    // Ambil unique user_ids lalu fetch nama dari profiles
+    const userIds = [...new Set(reactionData.map(r => r.user_id))]
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('id, full_name')
+      .in('id', userIds)
+
+    const profileMap: Record<string, string> = {}
+    for (const p of profileData ?? []) {
+      profileMap[p.id] = p.full_name ?? 'Pengguna'
+    }
+
+    // Gabungkan
+    const enriched = reactionData.map(r => ({
+      ...r,
+      profiles: { full_name: profileMap[r.user_id] ?? 'Pengguna' },
+    }))
+
+    setReactions(enriched as Reaction[])
   }
 
   useEffect(() => {
@@ -468,30 +494,21 @@ export default function SupabaseCommentEmbed({ site, slug, title = 'Komentar' }:
       if (!mounted) return
       setUser(session?.user ?? null)
       if (session?.user) fetchCurrentProfile(session.user.id)
-
       supabase.auth.onAuthStateChange((_event, session) => {
         if (!mounted) return
         setUser(session?.user ?? null)
         if (session?.user) fetchCurrentProfile(session.user.id)
         else setCurrentProfile(null)
       })
-
       await fetchComments()
       await fetchReactions()
-
       channelRef.current = supabase
         .channel(`comments:${site}:${slug}`)
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'comments', filter: `site=eq.${site}` },
-          async () => {
-            await fetchComments()
-          }
-        )
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'comments', filter: `site=eq.${site}` },
+          async () => { await fetchComments() })
         .subscribe()
     }
     setup().catch((e) => setError(e instanceof Error ? e.message : 'Gagal memuat komentar'))
-
     return () => {
       mounted = false
       if (channelRef.current) supabase.removeChannel(channelRef.current)
@@ -508,42 +525,54 @@ export default function SupabaseCommentEmbed({ site, slug, title = 'Komentar' }:
     }
   }, [replyTarget])
 
-  const { topLevelComments, repliesByParent } = useMemo(() => {
-    const topLevel = comments.filter((c) => !c.parent_id)
-    const replies = comments.reduce<Record<string, CommentItem[]>>((acc, c) => {
-      if (!c.parent_id) return acc
-      acc[c.parent_id] ??= []
-      acc[c.parent_id].push(c)
-      return acc
-    }, {})
-    const sorted = [...topLevel].sort((a, b) => {
+  const sortedComments = useMemo(() => {
+    return [...comments].sort((a, b) => {
       if (sortOrder === 'top') {
         const countA = reactions.filter(r => r.comment_id === a.id).length
         const countB = reactions.filter(r => r.comment_id === b.id).length
-        return countB - countA
+        if (countB !== countA) return countB - countA
       }
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
     })
-    return { topLevelComments: sorted, repliesByParent: replies }
   }, [comments, reactions, sortOrder])
 
-  const totalReplies = comments.length - topLevelComments.length
+  const commentMap = useMemo(() => {
+    const map: Record<string, CommentItem> = {}
+    for (const c of comments) map[c.id] = c
+    return map
+  }, [comments])
+
   const commentsPerPage = PAGE_SIZE
-  const totalPages = Math.ceil(topLevelComments.length / commentsPerPage) || 1
+  const totalPages = Math.ceil(sortedComments.length / commentsPerPage) || 1
 
   useEffect(() => {
     if (currentPage > totalPages && totalPages > 0) setCurrentPage(totalPages)
   }, [totalPages, currentPage])
 
-  const paginatedTopLevelComments = useMemo(() => {
-    const startIndex = (currentPage - 1) * commentsPerPage
-    return topLevelComments.slice(startIndex, startIndex + commentsPerPage)
-  }, [topLevelComments, currentPage, commentsPerPage])
+  const paginatedComments = useMemo(() => {
+    const start = (currentPage - 1) * commentsPerPage
+    return sortedComments.slice(start, start + commentsPerPage)
+  }, [sortedComments, currentPage, commentsPerPage])
+
+  function navigateToComment(commentId: string) {
+    const idx = sortedComments.findIndex(c => c.id === commentId)
+    if (idx === -1) return
+    const targetPage = Math.floor(idx / commentsPerPage) + 1
+    setHighlightId(commentId)
+    if (targetPage !== currentPage) {
+      setCurrentPage(targetPage)
+      setTimeout(() => {
+        commentRefs.current[commentId]?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 80)
+    } else {
+      commentRefs.current[commentId]?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+    setTimeout(() => setHighlightId(null), 2000)
+  }
 
   const googleDisplayName = user?.user_metadata?.full_name ?? user?.email ?? user?.id ?? ''
   const displayName = googleDisplayName || 'Pengguna'
   const userAvatarUrl = user?.user_metadata?.avatar_url || user?.user_metadata?.picture || null
-
   const isModerator = currentProfile?.role === 'moderator'
   const isBlocked = currentProfile?.is_blocked === true
 
@@ -576,10 +605,7 @@ export default function SupabaseCommentEmbed({ site, slug, title = 'Komentar' }:
     try { localStorage.setItem(returnToKey, window.location.href) } catch { }
     const { error: signInError } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-        queryParams: { prompt: 'select_account' },
-      },
+      options: { redirectTo: `${window.location.origin}/auth/callback`, queryParams: { prompt: 'select_account' } },
     })
     setAuthLoading(false)
     if (signInError) setAuthError(signInError.message)
@@ -629,10 +655,8 @@ export default function SupabaseCommentEmbed({ site, slug, title = 'Komentar' }:
 
     if (insertedData) {
       setComments((prev) => [...prev, insertedData as CommentItem])
-      if (!replyTarget) {
-        const newTotalTopLevel = topLevelComments.length + 1
-        setCurrentPage(Math.ceil(newTotalTopLevel / commentsPerPage))
-      }
+      const newTotal = sortedComments.length + 1
+      setCurrentPage(Math.ceil(newTotal / commentsPerPage))
     }
 
     setContent('')
@@ -647,16 +671,21 @@ export default function SupabaseCommentEmbed({ site, slug, title = 'Komentar' }:
       summary[emoji] = {
         count: matching.length,
         reacted: !!user && matching.some(r => r.user_id === user.id),
+        names: matching.map(r => (r.profiles as any)?.full_name || 'Pengguna'),
       }
     }
     return summary
   }
 
+  function getReactorUserIds(commentId: string, emoji: string): string[] {
+    return reactions
+      .filter(r => r.comment_id === commentId && r.emoji === emoji)
+      .map(r => r.user_id)
+  }
+
   async function handleReaction(commentId: string, emoji: string) {
     if (!user) return
-    const existing = reactions.find(
-      r => r.comment_id === commentId && r.user_id === user.id && r.emoji === emoji
-    )
+    const existing = reactions.find(r => r.comment_id === commentId && r.user_id === user.id && r.emoji === emoji)
     if (existing) {
       await supabase.from('comment_reactions').delete().eq('id', existing.id)
       setReactions(prev => prev.filter(r => r.id !== existing.id))
@@ -664,15 +693,14 @@ export default function SupabaseCommentEmbed({ site, slug, title = 'Komentar' }:
       const { data } = await supabase
         .from('comment_reactions')
         .insert({ comment_id: commentId, user_id: user.id, emoji })
-        .select('id, comment_id, user_id, emoji')
+        .select('id, comment_id, user_id, emoji, profiles(full_name)')
         .single()
-      if (data) setReactions(prev => [...prev, data as Reaction])
+      if (data) setReactions(prev => [...prev, data as unknown as Reaction])
     }
     setOpenReactionPicker(null)
   }
 
-  const canDeleteComment = (comment: CommentItem) =>
-    (user && comment.user_id === user.id) || isModerator
+  const canDeleteComment = (comment: CommentItem) => (user && comment.user_id === user.id) || isModerator
 
   return (
     <section className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 md:p-5 text-zinc-900 dark:text-zinc-100">
@@ -685,9 +713,7 @@ export default function SupabaseCommentEmbed({ site, slug, title = 'Komentar' }:
           </div>
           <div>
             <h2 className="text-base font-semibold tracking-tight">{title}</h2>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
-              {comments.length} komentar • {totalReplies} balasan
-            </p>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">{comments.length} komentar</p>
           </div>
         </div>
         <div className="text-[10px] text-zinc-400 font-mono hidden md:block">{site}/{slug}</div>
@@ -705,20 +731,15 @@ export default function SupabaseCommentEmbed({ site, slug, title = 'Komentar' }:
                 {isBlocked && <span className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-[10px] px-2 py-0.5 rounded-full font-bold">DIBLOKIR</span>}
               </div>
             </div>
-            <button
-              onClick={handleSignOut}
-              className="flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-            >
+            <button onClick={handleSignOut}
+              className="flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors">
               <LogOut className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Keluar</span>
             </button>
           </div>
         ) : (
-          <button
-            onClick={handleSignIn}
-            disabled={authLoading}
-            className="w-full flex items-center justify-center gap-2 rounded-xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 py-2.5 text-sm font-medium hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-colors disabled:opacity-70"
-          >
+          <button onClick={handleSignIn} disabled={authLoading}
+            className="w-full flex items-center justify-center gap-2 rounded-xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 py-2.5 text-sm font-medium hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-colors disabled:opacity-70">
             {authLoading ? <><Loader2 className="h-4 w-4 animate-spin" /> Mengarahkan...</> : <><LogIn className="h-4 w-4" /> Masuk dengan Google</>}
           </button>
         )}
@@ -728,9 +749,13 @@ export default function SupabaseCommentEmbed({ site, slug, title = 'Komentar' }:
       {/* FORM KOMENTAR */}
       <form ref={formRef} onSubmit={handleSubmit} className="pt-4 space-y-3">
         {replyTarget && (
-          <div className="flex items-center justify-between rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 px-3 py-2 text-xs text-zinc-500 dark:text-zinc-400">
-            <span>Membalas <span className="font-medium text-blue-600 dark:text-blue-400">{replyTarget.author}</span></span>
-            <button type="button" onClick={() => setReplyTarget(null)} className="hover:text-zinc-900 dark:hover:text-zinc-100">Batal</button>
+          <div className="rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 px-3 py-2">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-medium text-blue-600 dark:text-blue-400">Membalas {replyTarget.author}</span>
+              <button type="button" onClick={() => setReplyTarget(null)}
+                className="text-xs text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors">Batal</button>
+            </div>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2">{stripMarkup(replyTarget.content)}</p>
           </div>
         )}
 
@@ -740,22 +765,13 @@ export default function SupabaseCommentEmbed({ site, slug, title = 'Komentar' }:
             { label: 'Link', icon: Link2, action: () => insertAtCursor('[teks](', ')') },
             { label: 'Gambar', icon: ImageIcon, action: () => insertAtCursor('![alt](', ')') },
           ].map(({ label, icon: Icon, action }) => (
-            <button
-              key={label}
-              type="button"
-              onClick={action}
-              disabled={!user || isBlocked}
-              className="flex items-center gap-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-xs text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-600 hover:text-zinc-700 dark:hover:text-zinc-300 disabled:opacity-50 transition-colors"
-            >
+            <button key={label} type="button" onClick={action} disabled={!user || isBlocked}
+              className="flex items-center gap-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-xs text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-600 hover:text-zinc-700 dark:hover:text-zinc-300 disabled:opacity-50 transition-colors">
               <Icon className="h-3.5 w-3.5" /> {label}
             </button>
           ))}
-          <button
-            type="button"
-            onClick={() => insertAtCursor('[yt](', ')')}
-            disabled={!user || isBlocked}
-            className="flex items-center gap-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-xs text-zinc-500 dark:text-zinc-400 hover:border-red-300 dark:hover:border-red-500/50 hover:text-red-500 dark:hover:text-red-400 disabled:opacity-50 transition-colors"
-          >
+          <button type="button" onClick={() => insertAtCursor('[yt](', ')')} disabled={!user || isBlocked}
+            className="flex items-center gap-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-xs text-zinc-500 dark:text-zinc-400 hover:border-red-300 dark:hover:border-red-500/50 hover:text-red-500 dark:hover:text-red-400 disabled:opacity-50 transition-colors">
             <Music2 className="h-3.5 w-3.5" /> Music
           </button>
         </div>
@@ -782,39 +798,44 @@ export default function SupabaseCommentEmbed({ site, slug, title = 'Komentar' }:
 
       {/* SORT + COMMENT LIST */}
       <div className="mt-5">
-        {topLevelComments.length > 1 && (
+        {sortedComments.length > 1 && (
           <div className="flex items-center gap-1.5 mb-4">
-            <span className="text-xs text-zinc-400 mr-1"><SortAsc /></span>
+            <span className="text-xs text-zinc-400 mr-1"><SortAsc className="w-4 h-4" /></span>
             {(['newest', 'top'] as const).map(opt => (
-              <button
-                key={opt}
-                onClick={() => { setSortOrder(opt); setCurrentPage(1) }}
+              <button key={opt} onClick={() => { setSortOrder(opt); setCurrentPage(1) }}
                 className={`px-3 py-1 flex items-center gap-1 rounded-lg text-xs font-medium transition-colors ${sortOrder === opt
                   ? 'bg-zinc-600 dark:bg-white text-white dark:text-zinc-900'
                   : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
-                  }`}
-              >
+                  }`}>
                 {opt === 'newest' ? <Clock className='w-4 h-4' /> : <ArrowUpCircleIcon className='w-4 h-4' />}
                 {opt === 'newest' ? 'Terbaru' : 'Terpopuler'}
               </button>
             ))}
           </div>
         )}
+
         {comments.length === 0 ? (
           <p className="text-center text-zinc-400 py-6 text-sm">Belum ada komentar</p>
         ) : (
-          paginatedTopLevelComments.map((comment) => {
-            const replies = repliesByParent[comment.id] ?? []
-            const isOpen = !!openReplies[comment.id]
+          paginatedComments.map((comment) => {
             const commentProfile = getProfileValue(comment.profiles)
             const authorName = commentProfile?.full_name || comment.author
             const authorAvatar = commentProfile?.avatar_url ?? null
             const authorRole = commentProfile?.role ?? 'user'
             const isAuthorBlocked = commentProfile?.is_blocked ?? false
+            const parentComment = comment.parent_id ? commentMap[comment.parent_id] : null
+            const isHighlighted = highlightId === comment.id
 
             return (
-              <article key={comment.id} className="py-4 border-b border-zinc-100 dark:border-zinc-800 last:border-b-0">
-                {/* Comment header */}
+              <article
+                key={comment.id}
+                ref={(el) => { commentRefs.current[comment.id] = el }}
+                className={`py-4 border-b border-zinc-100 dark:border-zinc-800 last:border-b-0 transition-colors duration-500 px-2 -mx-2 ${isHighlighted ? 'bg-blue-50 dark:bg-blue-900/20 rounded-xl' : ''}`}
+              >
+                {parentComment && (
+                  <QuoteBlock comment={parentComment} onClick={() => navigateToComment(parentComment.id)} />
+                )}
+
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2.5">
                     <Avatar src={authorAvatar} name={authorName} />
@@ -835,161 +856,97 @@ export default function SupabaseCommentEmbed({ site, slug, title = 'Komentar' }:
                       {new Date(comment.created_at).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                     </time>
                     {isModerator && comment.user_id && comment.user_id !== user?.id && (
-                      <button
-                        onClick={() => handleToggleBlock(comment.user_id!, isAuthorBlocked)}
+                      <button onClick={() => handleToggleBlock(comment.user_id!, isAuthorBlocked)}
                         className={isAuthorBlocked ? 'text-green-500 hover:text-green-600' : 'text-orange-500 hover:text-orange-600'}
-                        title={isAuthorBlocked ? 'Buka Blokir' : 'Blokir'}
-                      >
+                        title={isAuthorBlocked ? 'Buka Blokir' : 'Blokir'}>
                         {isAuthorBlocked ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Ban className="h-3.5 w-3.5" />}
                       </button>
                     )}
                     {canDeleteComment(comment) && (
-                      <button onClick={() => handleDelete(comment.id)} className="text-red-500 hover:text-red-600 transition-colors" title="Hapus">
+                      <button onClick={() => handleDelete(comment.id)}
+                        className="text-red-500 hover:text-red-600 transition-colors" title="Hapus">
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     )}
                   </div>
                 </div>
 
-                {/* Comment body */}
                 <div className="text-zinc-700 dark:text-zinc-200 text-sm leading-relaxed pl-[42px]">
                   {renderCommentContent(comment.content)}
                   {(() => {
                     const ytUrl = extractYtUrlFromContent(comment.content)
                     return ytUrl ? (
-                      <MiniMusicPlayer
-                        url={ytUrl}
-                        commentId={comment.id}
-                        activePlayer={activePlayer}
-                        setActivePlayer={setActivePlayer}
-                      />
+                      <MiniMusicPlayer url={ytUrl} commentId={comment.id}
+                        activePlayer={activePlayer} setActivePlayer={setActivePlayer} />
                     ) : null
                   })()}
+
+                  {/* Reactions */}
                   {(() => {
                     const summary = getReactionSummary(comment.id)
                     const active = EMOJIS.filter(e => summary[e].count > 0)
                     return (
                       <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-                        {active.map(emoji => (
-                          <button
-                            key={emoji}
-                            onClick={() => user && handleReaction(comment.id, emoji)}
-                            className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs transition-all ${summary[emoji].reacted
-                              ? 'border-blue-400 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400'
-                              : 'border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300 hover:border-zinc-300 dark:hover:border-zinc-600'
-                              }`}
-                          >
-                            <span>{emoji}</span>
-                            <span className="font-medium tabular-nums">{summary[emoji].count}</span>
-                          </button>
-                        ))}
+                        {active.map(emoji => {
+                          const key = `${comment.id}:${emoji}`
+                          const isHovered = hoveredReaction === key
+                          const reactorIds = getReactorUserIds(comment.id, emoji)
+                          return (
+                            <div key={emoji} className="relative">
+                              <button
+                                onClick={() => user && handleReaction(comment.id, emoji)}
+                                onMouseEnter={() => setHoveredReaction(key)}
+                                onMouseLeave={() => setHoveredReaction(null)}
+                                onTouchStart={() => setHoveredReaction(isHovered ? null : key)}
+                                className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs transition-all ${summary[emoji].reacted
+                                  ? 'border-blue-400 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                                  : 'border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300 hover:border-zinc-300 dark:hover:border-zinc-600'
+                                  }`}>
+                                <span>{emoji}</span>
+                                <span className="font-medium tabular-nums">{summary[emoji].count}</span>
+                              </button>
+                              {isHovered && (
+                                <ReactorTooltip
+                                  names={summary[emoji].names}
+                                  currentUserId={user?.id}
+                                  reactorUserIds={reactorIds}
+                                />
+                              )}
+                            </div>
+                          )
+                        })}
+
                         <Popover>
                           <PopoverTrigger asChild>
-                            <button
-                              disabled={!user}
+                            <button disabled={!user}
                               title={user ? 'Tambah reaksi' : 'Login untuk bereaksi'}
-                              className="flex items-center gap-1 px-2 py-0.5 rounded-full border border-dashed border-zinc-300 dark:border-zinc-700 text-zinc-400 dark:text-zinc-500 hover:border-zinc-400 dark:hover:border-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 text-xs transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              <span>＋</span><span>😊</span>
+                              className="flex items-center gap-1 px-2 py-0.5 rounded-full border border-dashed border-zinc-300 dark:border-zinc-700 text-zinc-400 dark:text-zinc-500 hover:border-zinc-400 dark:hover:border-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 text-xs transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                              <SmilePlus className="h-4 w-4" />
                             </button>
                           </PopoverTrigger>
                           <PopoverContent side="top" align="start" className="w-fit p-1.5 rounded-2xl flex gap-1 flex-row shadow-lg">
-                            {EMOJIS.map(emoji => (
-                              <button
-                                key={emoji}
-                                onClick={() => handleReaction(comment.id, emoji)}
-                                className={`text-lg leading-none p-1.5 rounded-xl transition-all hover:scale-125 ${summary[emoji].reacted ? 'bg-blue-50 dark:bg-blue-500/10' : 'hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
-                              >
-                                {emoji}
-                              </button>
-                            ))}
+                            {EMOJIS.map(emoji => {
+                              const s = getReactionSummary(comment.id)
+                              return (
+                                <button key={emoji} onClick={() => handleReaction(comment.id, emoji)}
+                                  className={`text-lg leading-none p-1.5 rounded-xl transition-all hover:scale-125 ${s[emoji].reacted ? 'bg-blue-50 dark:bg-blue-500/10' : 'hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}>
+                                  {emoji}
+                                </button>
+                              )
+                            })}
                           </PopoverContent>
                         </Popover>
                       </div>
                     )
                   })()}
+
                   <div className="mt-2 flex items-center gap-3 text-xs">
-                    <button
-                      onClick={() => setReplyTarget(comment)}
-                      className="flex items-center gap-1 text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-medium"
-                    >
+                    <button onClick={() => setReplyTarget(comment)}
+                      className="flex items-center gap-1 text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-medium">
                       <Reply className="h-3.5 w-3.5" /> Balas
                     </button>
-                    {replies.length > 0 && (
-                      <button
-                        onClick={() => setOpenReplies((prev) => ({ ...prev, [comment.id]: !prev[comment.id] }))}
-                        className="flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
-                      >
-                        <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-                        {isOpen ? 'Sembunyikan' : `${replies.length} balasan`}
-                      </button>
-                    )}
                   </div>
                 </div>
-
-                {/* Replies */}
-                {isOpen && replies.length > 0 && (
-                  <div className="mt-3 space-y-3 pl-[42px]">
-                    {replies.map((reply) => {
-                      const replyProfile = getProfileValue(reply.profiles)
-                      const replyAuthorName = replyProfile?.full_name || reply.author
-                      const replyAuthorAvatar = replyProfile?.avatar_url ?? null
-                      const replyAuthorRole = replyProfile?.role ?? 'user'
-                      const isReplyAuthorBlocked = replyProfile?.is_blocked ?? false
-
-                      return (
-                        <div key={reply.id} className="pt-3 border-t border-zinc-100 dark:border-zinc-800/50">
-                          <div className="flex items-center justify-between mb-1.5">
-                            <div className="flex items-center gap-2">
-                              <Avatar src={replyAuthorAvatar} name={replyAuthorName} size="sm" />
-                              <div className="flex items-center gap-1.5">
-                                <strong className="text-sm font-medium">{replyAuthorName}</strong>
-                                {replyAuthorRole === 'moderator' && (
-                                  <span className="bg-blue-100 text-blue-700 text-[8px] px-1.5 py-0.5 rounded-full font-bold">MOD</span>
-                                )}
-                                {isReplyAuthorBlocked && (
-                                  <span className="bg-red-100 text-red-700 text-[8px] px-1.5 py-0.5 rounded-full font-bold">DIBLOKIR</span>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2.5">
-                              <time className="text-xs text-zinc-400">
-                                {new Date(reply.created_at).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                              </time>
-                              {isModerator && reply.user_id && reply.user_id !== user?.id && (
-                                <button
-                                  onClick={() => handleToggleBlock(reply.user_id!, isReplyAuthorBlocked)}
-                                  className={isReplyAuthorBlocked ? 'text-green-500 hover:text-green-600' : 'text-orange-500 hover:text-orange-600'}
-                                >
-                                  {isReplyAuthorBlocked ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Ban className="h-3.5 w-3.5" />}
-                                </button>
-                              )}
-                              {canDeleteComment(reply) && (
-                                <button onClick={() => handleDelete(reply.id)} className="text-red-500 hover:text-red-600">
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                          <div className="text-zinc-700 dark:text-zinc-200 text-sm leading-relaxed pl-8">
-                            {renderCommentContent(reply.content)}
-                            {(() => {
-                              const ytUrl = extractYtUrlFromContent(reply.content)
-                              return ytUrl ? (
-                                <MiniMusicPlayer
-                                  url={ytUrl}
-                                  commentId={reply.id}
-                                  activePlayer={activePlayer}
-                                  setActivePlayer={setActivePlayer}
-                                />
-                              ) : null
-                            })()}
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
               </article>
             )
           })
@@ -1000,30 +957,21 @@ export default function SupabaseCommentEmbed({ site, slug, title = 'Komentar' }:
       {totalPages > 1 && (
         <div className="mt-5 flex justify-center pt-4 border-t border-zinc-200 dark:border-zinc-800">
           <div className="flex items-center gap-1">
-            <button
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              className="flex h-8 items-center gap-1 rounded-l-2xl border border-r-0 border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 text-xs text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
+            <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1}
+              className="flex h-8 items-center gap-1 rounded-l-2xl border border-r-0 border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 text-xs text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
               <ChevronLeft className="w-3.5 h-3.5" /> Prev
             </button>
             {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
-              <button
-                key={pageNum}
-                onClick={() => setCurrentPage(pageNum)}
+              <button key={pageNum} onClick={() => setCurrentPage(pageNum)}
                 className={`flex h-8 min-w-[32px] items-center justify-center border border-zinc-200 dark:border-zinc-700 px-3 text-xs font-medium transition-colors ${pageNum === currentPage
                   ? 'bg-blue-600 text-white border-blue-600'
                   : 'bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800'
-                  }`}
-              >
+                  }`}>
                 {pageNum}
               </button>
             ))}
-            <button
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-              className="flex h-8 items-center gap-1 rounded-r-2xl border border-l-0 border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 text-xs text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
+            <button onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
+              className="flex h-8 items-center gap-1 rounded-r-2xl border border-l-0 border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 text-xs text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
               Next <ChevronRight className="w-3.5 h-3.5" />
             </button>
           </div>

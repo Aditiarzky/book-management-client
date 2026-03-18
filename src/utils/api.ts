@@ -401,3 +401,67 @@ export async function uploadImageToCloudinary(
     throw getErrorMessage(error);
   }
 }
+
+/* ─────────────────────────────────────────────
+   POPULAR BOOKS
+   Ambil buku dengan total like terbanyak.
+   Strategi: fetch semua Like rows dengan type='book',
+   sort descending by count, ambil top N bookId,
+   lalu fetch detail buku-buku itu.
+───────────────────────────────────────────── */
+export async function getPopularBooks(limit = 10): Promise<IBook[]> {
+  // Define type for raw data from 'Like' table
+  interface ILikeRow {
+    target_id: number;
+    count: number;
+  }
+
+  // 1. Ambil top like rows untuk type 'book'
+  const { data: likeRows, error: likeErr } = await supabase
+    .from('Like')
+    .select('target_id, count')
+    .eq('type', 'book')
+    .order('count', { ascending: false })
+    .limit(limit);
+
+  if (likeErr) throw new Error(likeErr.message);
+
+  // Jika belum ada data like, fallback ke buku terbaru
+  if (!likeRows || likeRows.length === 0) {
+    const { data, error } = await supabase
+      .from('Book')
+      .select(`*, genres:_BookGenre(genre:Genre(*)), chapters:Chapter(id,chapter,volume,nama,created_at)`)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    if (error) throw new Error(error.message);
+    // Ensure the mapped data matches the return type IBook[]
+    return (data ?? []).map(normalizeBook) as IBook[];
+  }
+
+  // Type assertion for likeRows after null/empty check
+  const typedLikeRows: ILikeRow[] = likeRows as ILikeRow[];
+  const ids = typedLikeRows.map((r) => r.target_id);
+  const countMap: Record<number, number> = {};
+  typedLikeRows.forEach((r) => { countMap[r.target_id] = r.count; });
+
+  // 2. Fetch detail buku
+  const { data: books, error: booksErr } = await supabase
+    .from('Book')
+    .select(`*, genres:_BookGenre(genre:Genre(*)), chapters:Chapter(id,chapter,volume,nama,created_at)`)
+    .in('id', ids);
+
+  if (booksErr) throw new Error(booksErr.message);
+
+  // Define type for books with likeCount for sorting
+  type BookWithLikeCount = IBook & { likeCount: number };
+
+  // 3. Urutkan sesuai urutan like (Supabase .in() tidak menjamin urutan)
+  // `b` from `books` is the raw Supabase data, which normalizeBook is designed to process.
+  // Assuming IBook type includes an 'id' property.
+  const sorted: BookWithLikeCount[] = (books ?? [])
+    .map((b: IBook) => ({ ...normalizeBook(b), likeCount: countMap[b.id] ?? 0 }))
+    .sort((a: BookWithLikeCount, b: BookWithLikeCount) => b.likeCount - a.likeCount);
+
+  // The return type Promise<IBook[]> is satisfied because BookWithLikeCount is compatible with IBook
+  return sorted;
+}

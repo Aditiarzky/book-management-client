@@ -55,6 +55,7 @@ export default function BookForm({ book, onSubmit, onCancel, loading }: BookForm
   });
   const [coverProgress, setCoverProgress] = useState<number | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     setForm({
@@ -69,6 +70,7 @@ export default function BookForm({ book, onSubmit, onCancel, loading }: BookForm
       genreIds: book?.genres?.map(g => g.id!).filter(Boolean) ?? [],
     });
     setSubmitted(false);
+    setIsSubmitting(false);
   }, [book]);
 
   const set = (key: keyof typeof form) => (v: string) => setForm(p => ({ ...p, [key]: v }));
@@ -91,8 +93,14 @@ export default function BookForm({ book, onSubmit, onCancel, loading }: BookForm
     e.preventDefault();
     setSubmitted(true);
     if (!form.judul || !form.author || !form.artist || !form.cover) return;
+    if (isSubmitting || loading) return;
+    setIsSubmitting(true);
     onSubmit(form);
   };
+
+  // Reset isSubmitting when parent clears loading
+
+  useEffect(() => { if (!loading) setIsSubmitting(false); }, [loading]);
 
   const err = (field: keyof typeof form) =>
     submitted && !form[field] ? `${field === "judul" ? "Judul" : field === "author" ? "Author" : field === "artist" ? "Artist" : "Cover"} wajib diisi` : undefined;
@@ -240,9 +248,10 @@ export default function BookForm({ book, onSubmit, onCancel, loading }: BookForm
               className="h-9 px-4 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-white transition-colors">
               Batal
             </button>
-            <button type="submit" disabled={loading || uploading}
-              className="h-9 px-5 rounded-xl bg-gray-900 hover:bg-gray-800 disabled:opacity-50 text-white text-sm font-semibold transition-colors">
-              {loading ? "Menyimpan…" : book ? "Simpan Perubahan" : "Tambah Buku"}
+            <button type="submit" disabled={isSubmitting || !!loading || uploading}
+              className="h-9 px-5 rounded-xl bg-gray-900 hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors flex items-center gap-2">
+              {(isSubmitting || loading) && <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block" />}
+              {isSubmitting || loading ? "Menyimpan…" : book ? "Simpan Perubahan" : "Tambah Buku"}
             </button>
           </div>
         </div>
