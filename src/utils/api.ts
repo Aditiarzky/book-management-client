@@ -372,17 +372,42 @@ export async function deleteChapter(id: number) {
 
 // ======================= UPLOAD ==========================
 
+function toWebP(file: File, quality = 0.85): Promise<File> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      canvas.getContext('2d')!.drawImage(img, 0, 0);
+      canvas.toBlob(
+        (blob) => {
+          URL.revokeObjectURL(url);
+          resolve(blob ? new File([blob], file.name.replace(/\.[^.]+$/, '.webp'), { type: 'image/webp' }) : file);
+        },
+        'image/webp',
+        quality
+      );
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
 export async function uploadImageToCloudinary(
   file: File,
-  onProgress: (progress: number) => void
+  onProgress: (progress: number) => void,
+  compress = false
 ): Promise<string> {
   const cloudName = 'dwswkz2sk';
   const uploadPreset = 'msa_image';
 
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('upload_preset', uploadPreset);
+  const webpFile = await toWebP(file, compress ? 0.80 : 0.90);
 
+  const formData = new FormData();
+  formData.append('file', webpFile);
+  formData.append('upload_preset', uploadPreset);
   try {
     const response = await axios.post(
       `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,

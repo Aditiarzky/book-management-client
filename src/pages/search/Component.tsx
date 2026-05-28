@@ -1,10 +1,17 @@
 import { useState, useEffect } from "react";
-import { Loader, BookOpen, Search, RefreshCw, Home, Filter } from "lucide-react";
+import {
+  Loader,
+  BookOpen,
+  Search,
+  RefreshCw,
+  Home,
+  Filter,
+} from "lucide-react";
 import useBookStore from "@/store/useBookStore";
 import type { SearchFiltersType } from "@/components/SearchFilter";
 import SearchFilters from "@/components/SearchFilter";
 import BookCard from "@/components/BookCard";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { useDebounce } from "use-debounce";
 import { setMetaTags } from "@/utils/meta";
@@ -32,13 +39,20 @@ const EmptySearchState = ({
     <div className="bg-gray-100 p-6 rounded-full w-24 h-24 mx-auto mb-6 flex items-center justify-center">
       <Search className="w-12 h-12 text-gray-400" />
     </div>
-    <h3 className="text-2xl font-semibold mb-2 text-gray-800">No Results Found</h3>
+    <h3 className="text-2xl font-semibold mb-2 text-gray-800">
+      No Results Found
+    </h3>
     <p className="text-gray-600 mb-6 max-w-md mx-auto">
-      We couldn't find any books matching "<span className="font-medium">{searchQuery}</span>"
+      We couldn't find any books matching "
+      <span className="font-medium">{searchQuery}</span>"
     </p>
     <div className="flex gap-3">
       {onResetFilters && (
-        <Button onClick={onResetFilters} variant="outline" className="flex items-center gap-2">
+        <Button
+          onClick={onResetFilters}
+          variant="outline"
+          className="flex items-center gap-2"
+        >
           <Filter className="h-4 w-4" />
           Reset Filters
         </Button>
@@ -58,7 +72,9 @@ const InitialSearchState = () => (
     <div className="bg-gray-100 p-6 rounded-full w-24 h-24 mx-auto mb-6 flex items-center justify-center">
       <Search className="w-12 h-12 text-gray-400" />
     </div>
-    <h3 className="text-2xl font-semibold mb-2 text-gray-800">Search for Books</h3>
+    <h3 className="text-2xl font-semibold mb-2 text-gray-800">
+      Search for Books
+    </h3>
     <p className="text-gray-600 mb-6 max-w-md mx-auto">
       Use the search bar and filters above to find books you're interested in.
     </p>
@@ -66,15 +82,24 @@ const InitialSearchState = () => (
 );
 
 export default function SearchPage() {
-  const [hasSearched, setHasSearched] = useState(false);
+  const search = useSearch({ from: "/search" });
+  const [hasSearched, setHasSearched] = useState(
+    !!(search.query || search.creator || search.genre),
+  );
   const [filters, setFilters] = useState<SearchFiltersType>({
-    searchQuery: "",
-    creator: "",
-    genreIds: [],
+    searchQuery: search.query || "",
+    creator: search.creator || "",
+    genreIds: search.genre ? [search.genre] : [],
   });
   const [debouncedFilters] = useDebounce(filters, 500);
 
-  const { searchResults, loading, isLoadingNextSearch, searchMeta, loadMoreSearch } = useBookStore({
+  const {
+    searchResults,
+    loading,
+    isLoadingNextSearch,
+    searchMeta,
+    loadMoreSearch,
+  } = useBookStore({
     searchParams: {
       searchQuery: debouncedFilters.searchQuery || "",
       limit: 20,
@@ -99,11 +124,17 @@ export default function SearchPage() {
 
   useEffect(() => {
     if (!loading) {
+      const params = new URLSearchParams();
+      if (debouncedFilters.searchQuery) params.set("query", debouncedFilters.searchQuery);
+      if (debouncedFilters.creator) params.set("creator", debouncedFilters.creator);
+      if (debouncedFilters.genreIds.length > 0) {
+        params.set("genre", String(debouncedFilters.genreIds[0]));
+      }
       setMetaTags({
-        title: `Search ${debouncedFilters.searchQuery || 'Book'} | Riztranslation`,
-        description: `Temukan buku seperti ${debouncedFilters.searchQuery || 'manga dan novel'} di Riztranslation.`,
+        title: `Search ${debouncedFilters.searchQuery || debouncedFilters.creator || "Book"} | Riztranslation`,
+        description: `Temukan buku seperti ${debouncedFilters.searchQuery || debouncedFilters.creator || "manga dan novel"} di Riztranslation.`,
         image: "https://i.imgur.com/uaZ4pwN.jpeg",
-        url: `https://riztranslation.rf.gd/search?query=${encodeURIComponent(debouncedFilters.searchQuery || '')}`,
+        url: `https://riztranslation.rf.gd/search${params.toString() ? `?${params.toString()}` : ""}`,
       });
     }
   }, [debouncedFilters, loading]);
@@ -113,7 +144,12 @@ export default function SearchPage() {
   return (
     <div className="min-h-screen">
       <div className="container mx-auto p-4">
-        <SearchFilters onSearch={handleSearch} loading={loading} />
+        <SearchFilters
+          key={`${search.query || ""}:${search.creator || ""}:${search.genre || ""}`}
+          onSearch={handleSearch}
+          loading={loading}
+          initialFilters={filters}
+        />
         <div className="mb-6">
           {loading && !isLoadingNextSearch ? (
             <div className="flex items-center justify-center py-12">
@@ -125,9 +161,15 @@ export default function SearchPage() {
                 <div className="flex items-center justify-between mb-6">
                   <span className="text-gray-600 flex items-center gap-2">
                     <BookOpen className="w-5 h-5 text-gray-500" />
-                    {results.length > 0 ? `Found ${results.length} books` : "No books found"}
+                    {results.length > 0
+                      ? `Found ${results.length} books`
+                      : "No books found"}
                   </span>
-                  <Button variant="ghost" size="sm" onClick={handleResetFilters}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleResetFilters}
+                  >
                     <RefreshCw className="w-4 h-4 mr-1" /> Reset
                   </Button>
                 </div>
@@ -155,8 +197,16 @@ export default function SearchPage() {
 
                   {canLoadMore && (
                     <div className="text-center mt-6">
-                      <Button variant="outline" onClick={() => loadMoreSearch()} disabled={isLoadingNextSearch}>
-                        {isLoadingNextSearch ? <Loader className="h-4 w-4 animate-spin" /> : "Load More"}
+                      <Button
+                        variant="outline"
+                        onClick={() => loadMoreSearch()}
+                        disabled={isLoadingNextSearch}
+                      >
+                        {isLoadingNextSearch ? (
+                          <Loader className="h-4 w-4 animate-spin" />
+                        ) : (
+                          "Load More"
+                        )}
                       </Button>
                     </div>
                   )}

@@ -6,6 +6,7 @@ import type { IUpFileStore } from '@/types/core.types';
 const useUpFile: UseBoundStore<StoreApi<IUpFileStore>> = create((set) => ({
   loading: false,
   onProgress: 0,
+  // thumbnail / cover — compress + resize
   uploadFile: async (file: File, onUploadProgress?: (progress: number) => void): Promise<string | null> => {
     try {
       set({ loading: true, onProgress: 0 });
@@ -13,7 +14,7 @@ const useUpFile: UseBoundStore<StoreApi<IUpFileStore>> = create((set) => ({
       const imageUrl = await uploadImageToCloudinary(file, (progress) => {
         set({ onProgress: progress });
         if (onUploadProgress) onUploadProgress(progress);
-      });
+      }, true);
 
       return imageUrl;
     } catch (error) {
@@ -25,6 +26,7 @@ const useUpFile: UseBoundStore<StoreApi<IUpFileStore>> = create((set) => ({
       set({ loading: false });
     }
   },
+  // konten chapter — hanya convert WebP, tidak di-resize
   uploadFileMultiple: async (file: File, onUploadProgress?: (progress: number) => void): Promise<string | null> => {
     try {
       set({ loading: true, onProgress: 0 });
@@ -32,7 +34,7 @@ const useUpFile: UseBoundStore<StoreApi<IUpFileStore>> = create((set) => ({
       const response = await uploadImageToCloudinary(file, (progress) => {
         set({ onProgress: progress });
         if (onUploadProgress) onUploadProgress(progress);
-      });
+      }, false);
 
       set({ onProgress: 100 });
       return response;

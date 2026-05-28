@@ -13,6 +13,12 @@
     <priority>0.7</priority>
   </url>
   <url>
+    <loc>https://riztranslation.pages.dev/detail/57</loc>
+    <lastmod>2026-05-28T06:27:46.442Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://riztranslation.pages.dev/detail/55</loc>
     <lastmod>2026-03-18T08:55:10.423Z</lastmod>
     <changefreq>weekly</changefreq>
@@ -80,7 +86,7 @@
   </url>
   <url>
     <loc>https://riztranslation.pages.dev/detail/40</loc>
-    <lastmod>2024-04-19T08:05:32.000Z</lastmod>
+    <lastmod>2026-03-24T10:54:56.647Z</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -299,6 +305,42 @@
     <lastmod>2024-02-22T22:23:39.000Z</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://riztranslation.pages.dev/view/57/163</loc>
+    <lastmod>2026-05-28T06:30:52.068Z</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://riztranslation.pages.dev/view/40/162</loc>
+    <lastmod>2026-05-02T12:47:14.641Z</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://riztranslation.pages.dev/view/55/161</loc>
+    <lastmod>2026-04-24T12:32:20.461Z</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://riztranslation.pages.dev/view/40/160</loc>
+    <lastmod>2026-03-24T10:50:40.931Z</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://riztranslation.pages.dev/view/40/159</loc>
+    <lastmod>2026-03-24T10:48:49.477Z</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://riztranslation.pages.dev/view/40/158</loc>
+    <lastmod>2026-03-22T01:36:47.041Z</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
   </url>
   <url>
     <loc>https://riztranslation.pages.dev/view/9/157</loc>
@@ -800,7 +842,7 @@
   </url>
   <url>
     <loc>https://riztranslation.pages.dev/view/40/41</loc>
-    <lastmod>2024-02-28T19:36:00.000Z</lastmod>
+    <lastmod>2026-03-24T10:34:26.519Z</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>

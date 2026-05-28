@@ -1,54 +1,78 @@
-import { useState } from "react"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { Search, Filter, X, ChevronDown, ChevronUp, Loader } from "lucide-react"
-import useGenreStore from "@/store/useGenreStore"
+import { useState } from "react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
+  Search,
+  Filter,
+  X,
+  ChevronDown,
+  ChevronUp,
+  Loader,
+} from "lucide-react";
+import useGenreStore from "@/store/useGenreStore";
 
 interface SearchFiltersProps {
-  onSearch: (filters: SearchFiltersType) => void
-  loading?: boolean
+  onSearch: (filters: SearchFiltersType) => void;
+  loading?: boolean;
+  initialFilters?: SearchFiltersType;
 }
 
 export interface SearchFiltersType {
-  searchQuery: string
-  creator: string
-  genreIds: number[]
+  searchQuery: string;
+  creator: string;
+  genreIds: number[];
 }
 
-export default function SearchFilters({ onSearch, loading }: SearchFiltersProps) {
-  const { genres, loading: isLoadingGenres } = useGenreStore()
-  const [searchQuery, setSearchQuery] = useState("")
-  const [creator, setCreator] = useState("")
-  const [selectedGenres, setSelectedGenres] = useState<number[]>([])
-  const [showFilters, setShowFilters] = useState(false)
+export default function SearchFilters({
+  onSearch,
+  loading,
+  initialFilters,
+}: SearchFiltersProps) {
+  const { genres, loading: isLoadingGenres } = useGenreStore();
+  const [searchQuery, setSearchQuery] = useState(
+    initialFilters?.searchQuery || "",
+  );
+  const [creator, setCreator] = useState(initialFilters?.creator || "");
+  const [selectedGenres, setSelectedGenres] = useState<number[]>(
+    initialFilters?.genreIds || [],
+  );
+  const [showFilters, setShowFilters] = useState(false);
 
   const handleSearch = () => {
     onSearch({
       searchQuery: searchQuery.trim(),
       creator: creator.trim(),
       genreIds: selectedGenres,
-    })
-  }
+    });
+  };
 
   const handleGenreToggle = (genreId: number) => {
-    setSelectedGenres((prev) => (prev.includes(genreId) ? prev.filter((id) => id !== genreId) : [...prev, genreId]))
-  }
+    setSelectedGenres((prev) =>
+      prev.includes(genreId)
+        ? prev.filter((id) => id !== genreId)
+        : [...prev, genreId],
+    );
+  };
 
   const clearFilters = () => {
-    setSearchQuery("")
-    setCreator("")
-    setSelectedGenres([])
+    setSearchQuery("");
+    setCreator("");
+    setSelectedGenres([]);
     onSearch({
       searchQuery: "",
       creator: "",
       genreIds: [],
-    })
-  }
+    });
+  };
 
-  const hasActiveFilters = searchQuery || creator || selectedGenres.length > 0
+  const hasActiveFilters = searchQuery || creator || selectedGenres.length > 0;
 
   return (
     <Card className="mb-6">
@@ -74,10 +98,17 @@ export default function SearchFilters({ onSearch, loading }: SearchFiltersProps)
         <Collapsible open={showFilters} onOpenChange={setShowFilters}>
           <div className="flex items-center justify-between">
             <CollapsibleTrigger asChild>
-              <Button variant="ghost" className="flex items-center gap-2 p-0 h-auto">
+              <Button
+                variant="ghost"
+                className="flex items-center gap-2 p-0 h-auto"
+              >
                 <Filter className="w-4 h-4" />
                 <span>Advanced Filters</span>
-                {showFilters ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                {showFilters ? (
+                  <ChevronUp className="w-4 h-4" />
+                ) : (
+                  <ChevronDown className="w-4 h-4" />
+                )}
               </Button>
             </CollapsibleTrigger>
 
@@ -112,7 +143,9 @@ export default function SearchFilters({ onSearch, loading }: SearchFiltersProps)
               {isLoadingGenres ? (
                 <div className="flex items-center justify-center py-2">
                   <Loader className="h-4 w-4 animate-spin mr-2" />
-                  <span className="text-sm text-gray-500">Loading genres...</span>
+                  <span className="text-sm text-gray-500">
+                    Loading genres...
+                  </span>
                 </div>
               ) : (
                 <>
@@ -120,7 +153,11 @@ export default function SearchFilters({ onSearch, loading }: SearchFiltersProps)
                     {genres?.map((genre) => (
                       <Badge
                         key={genre.id}
-                        variant={selectedGenres.includes(genre.id || 1) ? "default" : "outline"}
+                        variant={
+                          selectedGenres.includes(genre.id || 1)
+                            ? "default"
+                            : "outline"
+                        }
                         className="cursor-pointer hover:bg-blue-100 transition-colors"
                         onClick={() => handleGenreToggle(genre.id || 1)}
                       >
@@ -129,7 +166,9 @@ export default function SearchFilters({ onSearch, loading }: SearchFiltersProps)
                     ))}
                   </div>
                   {selectedGenres.length > 0 && (
-                    <p className="text-xs text-gray-500 mt-2">{selectedGenres.length} genres selected</p>
+                    <p className="text-xs text-gray-500 mt-2">
+                      {selectedGenres.length} genres selected
+                    </p>
                   )}
                 </>
               )}
@@ -142,20 +181,24 @@ export default function SearchFilters({ onSearch, loading }: SearchFiltersProps)
           <div className="mt-4 pt-4 border-t">
             <div className="flex flex-wrap gap-2 items-center">
               <span className="text-sm text-gray-600">Active filters:</span>
-              {searchQuery && <Badge variant="secondary">Search: "{searchQuery}"</Badge>}
-              {creator && <Badge variant="secondary">Creator: "{creator}"</Badge>}
+              {searchQuery && (
+                <Badge variant="secondary">Search: "{searchQuery}"</Badge>
+              )}
+              {creator && (
+                <Badge variant="secondary">Creator: "{creator}"</Badge>
+              )}
               {selectedGenres.map((genreId) => {
-                const genre = genres?.find((g) => g.id === genreId)
+                const genre = genres?.find((g) => g.id === genreId);
                 return genre ? (
                   <Badge key={genreId} variant="secondary">
                     Genre: {genre.nama}
                   </Badge>
-                ) : null
+                ) : null;
               })}
             </div>
           </div>
         )}
       </CardContent>
     </Card>
-  )
+  );
 }

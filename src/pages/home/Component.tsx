@@ -1,17 +1,28 @@
-import { BookOpenText, Facebook, AlertCircle, RefreshCw, Loader, ChevronDown, Library } from "lucide-react";
-import type { IChapter } from '../../types/core.types';
-import { KontenCard } from '../../components/Card';
-import useChapterStore from '../../store/useChapterStore';
-import useBookStore from '../../store/useBookStore';
+import { useState } from "react";
+import {
+  BookOpenText,
+  Facebook,
+  AlertCircle,
+  RefreshCw,
+  Loader,
+  ChevronDown,
+  Library,
+} from "lucide-react";
+import type { IChapter } from "../../types/core.types";
+import { KontenCard } from "../../components/Card";
+import useChapterStore from "../../store/useChapterStore";
+import useBookStore from "../../store/useBookStore";
+import useGenreStore from "../../store/useGenreStore";
 import NewCh from "../../components/NewCh";
 import PopularCarousel from "../../components/PopularCarousel";
+import { useVisitCounts } from "../../hooks/useVisitCounts";
 
 /* ─────────────────────────────────────────────
    SKELETON
 ───────────────────────────────────────────── */
 const ChapterCardSkeleton = () => (
   <div className="flex gap-3 p-2.5 rounded-2xl bg-white dark:bg-white/3 border border-gray-100 dark:border-white/5 animate-pulse">
-    <div className="w-14 h-20 rounded-xl bg-gray-200 dark:bg-white/8 shrink-0" />
+    <div className="w-24 h-32 rounded-xl bg-gray-200 dark:bg-white/8 shrink-0" />
     <div className="flex-1 py-0.5 flex flex-col justify-between">
       <div className="space-y-1.5">
         <div className="h-2.5 w-12 bg-gray-200 dark:bg-white/8 rounded-md" />
@@ -27,7 +38,10 @@ const ChapterCardSkeleton = () => (
    EMPTY STATE
 ───────────────────────────────────────────── */
 export const EmptyState = ({
-  title, description, icon: Icon = AlertCircle, onRefresh,
+  title,
+  description,
+  icon: Icon = AlertCircle,
+  onRefresh,
 }: {
   title: string;
   description: string;
@@ -39,7 +53,9 @@ export const EmptyState = ({
     <div className="w-14 h-14 rounded-2xl bg-gray-100 dark:bg-white/5 flex items-center justify-center mb-4">
       <Icon className="h-6 w-6 text-gray-400 dark:text-white/20" />
     </div>
-    <p className="text-gray-500 dark:text-white/30 text-sm mb-4 max-w-xs">{description}</p>
+    <p className="text-gray-500 dark:text-white/30 text-sm mb-4 max-w-xs">
+      {description}
+    </p>
     {onRefresh && (
       <button
         onClick={onRefresh}
@@ -52,20 +68,65 @@ export const EmptyState = ({
 );
 
 /* ─────────────────────────────────────────────
+   GENRE FILTER
+───────────────────────────────────────────── */
+const GenreFilter = ({
+  genres,
+  selected,
+  onSelect,
+}: {
+  genres: { id: number; nama: string }[];
+  selected: number | null;
+  onSelect: (id: number | null) => void;
+}) => (
+  <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+    <button
+      onClick={() => onSelect(null)}
+      className={`shrink-0 px-3 py-1 rounded-xl text-xs font-medium transition-all ${
+        selected === null
+          ? "bg-gray-800 dark:bg-white text-white dark:text-gray-900"
+          : "bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-white/40 hover:bg-gray-200 dark:hover:bg-white/10"
+      }`}
+    >
+      Semua
+    </button>
+    {genres.map((g) => (
+      <button
+        key={g.id}
+        onClick={() => onSelect(g.id === selected ? null : g.id)}
+        className={`shrink-0 px-3 py-1 rounded-xl text-xs font-medium transition-all ${
+          selected === g.id
+            ? "bg-gray-800 dark:bg-white text-white dark:text-gray-900"
+            : "bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-white/40 hover:bg-gray-200 dark:hover:bg-white/10"
+        }`}
+      >
+        {g.nama}
+      </button>
+    ))}
+  </div>
+);
+
+/* ─────────────────────────────────────────────
    FACEBOOK EMBED
 ───────────────────────────────────────────── */
 const FbPage = () => (
   <div className="flex flex-col md:flex-row gap-4 justify-center items-center overflow-x-auto py-2">
     {[
-      'https://www.facebook.com/riztranslation',
-      'https://www.facebook.com/riztranslations',
-    ].map(href => (
-      <div key={href} className="rounded-2xl overflow-hidden border border-gray-100 dark:border-white/5 shrink-0 shadow-sm">
+      "https://www.facebook.com/riztranslation",
+      "https://www.facebook.com/riztranslations",
+    ].map((href) => (
+      <div
+        key={href}
+        className="rounded-2xl overflow-hidden border border-gray-100 dark:border-white/5 shrink-0 shadow-sm"
+      >
         <iframe
           src={`https://www.facebook.com/plugins/page.php?href=${encodeURIComponent(href)}&tabs=timeline&width=340&height=480&small_header=true&adapt_container_width=true&hide_cover=false&show_facepile=true`}
-          width="340" height="480"
-          style={{ border: 'none', overflow: 'hidden', display: 'block' }}
-          scrolling="no" frameBorder="0" allowFullScreen
+          width="340"
+          height="480"
+          style={{ border: "none", overflow: "hidden", display: "block" }}
+          scrolling="no"
+          frameBorder="0"
+          allowFullScreen
           allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
         />
       </div>
@@ -76,15 +137,29 @@ const FbPage = () => (
 /* ─────────────────────────────────────────────
    CHAPTER CORNER
 ───────────────────────────────────────────── */
-export const ChCorner = ({ chapters, loading }: { chapters: IChapter[]; loading: boolean }) => {
-  const { meta, isLoadingNextPage, loadMoreLatestChapters: loadMoreChapters } = useChapterStore();
+export const ChCorner = ({
+  chapters,
+  loading,
+}: {
+  chapters: IChapter[];
+  loading: boolean;
+}) => {
+  const {
+    meta,
+    isLoadingNextPage,
+    loadMoreLatestChapters: loadMoreChapters,
+  } = useChapterStore();
   const safeMeta = meta || { total: 0, page: 1, limit: 10, totalPages: 1 };
+  const chapterIds = chapters.map((c) => c.id);
+  const visitCounts = useVisitCounts("chapter", chapterIds);
 
   return (
     <div className="w-full">
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-          {Array.from({ length: 9 }).map((_, i) => <ChapterCardSkeleton key={i} />)}
+          {Array.from({ length: 9 }).map((_, i) => (
+            <ChapterCardSkeleton key={i} />
+          ))}
         </div>
       ) : chapters.length === 0 ? (
         <EmptyState
@@ -95,7 +170,7 @@ export const ChCorner = ({ chapters, loading }: { chapters: IChapter[]; loading:
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-            {chapters.map(chapter => (
+            {chapters.map((chapter) => (
               <NewCh
                 key={chapter.id}
                 judul={chapter.book.judul}
@@ -104,12 +179,17 @@ export const ChCorner = ({ chapters, loading }: { chapters: IChapter[]; loading:
                 cover={chapter.book.cover}
                 created_at={chapter.created_at}
                 volume={chapter.volume}
+                nama={chapter.nama}
                 id={chapter.id}
                 tipe={chapter.book.type}
                 bookId={chapter.bookId}
+                visitCount={visitCounts[chapter.id] ?? 0}
               />
             ))}
-            {isLoadingNextPage && Array.from({ length: 3 }).map((_, i) => <ChapterCardSkeleton key={`next-${i}`} />)}
+            {isLoadingNextPage &&
+              Array.from({ length: 3 }).map((_, i) => (
+                <ChapterCardSkeleton key={`next-${i}`} />
+              ))}
           </div>
 
           {safeMeta.page < safeMeta.totalPages && (
@@ -119,10 +199,15 @@ export const ChCorner = ({ chapters, loading }: { chapters: IChapter[]; loading:
                 disabled={isLoadingNextPage}
                 className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 border border-gray-200 dark:border-white/8 text-gray-600 dark:text-white/50 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isLoadingNextPage
-                  ? <><Loader className="h-4 w-4 animate-spin" /> Memuat...</>
-                  : <><ChevronDown className="h-4 w-4" /> Muat Lebih Banyak</>
-                }
+                {isLoadingNextPage ? (
+                  <>
+                    <Loader className="h-4 w-4 animate-spin" /> Memuat...
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="h-4 w-4" /> Muat Lebih Banyak
+                  </>
+                )}
               </button>
             </div>
           )}
@@ -136,7 +221,8 @@ export const ChCorner = ({ chapters, loading }: { chapters: IChapter[]; loading:
    SECTION HEADER
 ───────────────────────────────────────────── */
 const SectionHeader = ({
-  icon: Icon, title,
+  icon: Icon,
+  title,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   title: string;
@@ -145,7 +231,9 @@ const SectionHeader = ({
     <div className="w-8 h-8 rounded-xl bg-gray-100 dark:bg-white/5 flex items-center justify-center">
       <Icon className="h-4 w-4 text-gray-500 dark:text-white/40" />
     </div>
-    <h2 className="text-base font-semibold text-gray-800 dark:text-white/80">{title}</h2>
+    <h2 className="text-base font-semibold text-gray-800 dark:text-white/80">
+      {title}
+    </h2>
     <div className="flex-1 h-px bg-gray-100 dark:bg-white/5" />
   </div>
 );
@@ -155,25 +243,58 @@ const SectionHeader = ({
 ───────────────────────────────────────────── */
 export default function HomeComponent() {
   const { latestChapters: chapters, loading: loadingCh } = useChapterStore();
-  const { books, loading: loadingBook, isLoadingNextPage, meta, loadMoreBooks } = useBookStore();
+  const {
+    books,
+    loading: loadingBook,
+    isLoadingNextPage,
+    meta,
+    loadMoreBooks,
+    searchBook,
+    searchResults,
+    isLoadingNextSearch,
+    searchMeta,
+    loadMoreSearch,
+  } = useBookStore();
+  const { genres } = useGenreStore();
+  const [selectedGenre, setSelectedGenre] = useState<number | null>(null);
+
+  const handleGenreSelect = (id: number | null) => {
+    setSelectedGenre(id);
+    searchBook("", 1, 20, "", id ? [id] : [], false);
+  };
+
+  const displayBooks = selectedGenre !== null ? searchResults : books;
+  const displayMeta = selectedGenre !== null ? searchMeta : meta;
+  const displayLoadMore =
+    selectedGenre !== null ? loadMoreSearch : loadMoreBooks;
+  const displayLoadingNext =
+    selectedGenre !== null ? isLoadingNextSearch : isLoadingNextPage;
 
   return (
     <main className="w-full max-w-6xl mx-auto px-4 py-4 space-y-8">
-
       {/* ── 1. Popular books hero carousel ── */}
       <section>
         <PopularCarousel />
       </section>
 
-      {/* ── 2. Book shelf (semua buku, swiper horizontal) ── */}
+      {/* ── 2. Book shelf with genre filter ── */}
       <section>
         <SectionHeader icon={Library} title="Semua Buku" />
+        {genres.length > 0 && (
+          <div className="mb-3">
+            <GenreFilter
+              genres={genres}
+              selected={selectedGenre}
+              onSelect={handleGenreSelect}
+            />
+          </div>
+        )}
         <KontenCard
-          loadMoreBooks={loadMoreBooks}
+          loadMoreBooks={displayLoadMore}
           loading={loadingBook}
-          books={books}
-          isLoadingNextPage={isLoadingNextPage}
-          meta={meta}
+          books={displayBooks}
+          isLoadingNextPage={displayLoadingNext}
+          meta={displayMeta}
         />
       </section>
 
@@ -188,7 +309,6 @@ export default function HomeComponent() {
         <SectionHeader icon={Facebook} title="Facebook Page" />
         <FbPage />
       </section>
-
     </main>
   );
 }

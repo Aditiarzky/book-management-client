@@ -1,7 +1,9 @@
-import { Link } from '@tanstack/react-router';
-import { DETAIL_PAGE, VIEW_PAGE } from '@/routes/constants';
-import { formatDate, formatDistanceToNow, isWithinOneMonth, isWithinOneWeek } from '../utils/format';
-import noImage from '@/placeholder.gif';
+import { Link } from "@tanstack/react-router";
+import { DETAIL_PAGE, VIEW_PAGE } from "@/routes/constants";
+import { isWithinOneWeek, getSmartDate, slugify } from "../utils/format";
+import { Eye } from "lucide-react";
+import noImage from "@/placeholder.gif";
+import { formatVisitCount } from "@/lib/format";
 
 /* ─────────────────────────────────────────────
    TYPES
@@ -18,6 +20,7 @@ interface ChapterMixBook {
   created_at: Date;
   nama?: string;
   tipe: string | null;
+  visitCount?: number;
 }
 
 interface ChProps {
@@ -29,23 +32,14 @@ interface ChProps {
   created_at: Date;
   nama?: string;
   type?: number;
-}
-
-/* ─────────────────────────────────────────────
-   DATE HELPER
-───────────────────────────────────────────── */
-function getFormattedDate(created_at: Date): string {
-  const d = new Date(created_at);
-  if (isWithinOneWeek(d)) return formatDistanceToNow(d);
-  if (isWithinOneMonth(d)) return formatDistanceToNow(d, { includeSeconds: true });
-  return formatDate(d);
+  visitCount?: number;
 }
 
 /* ─────────────────────────────────────────────
    NEW BADGE — shown within one week
 ───────────────────────────────────────────── */
-const NewBadge = ({ created_at }: { created_at: Date }) => {
-  if (!isWithinOneWeek(new Date(created_at))) return null;
+const NewBadge = ({ created_at }: { created_at: Date | string }) => {
+  if (!isWithinOneWeek(created_at)) return null;
   return (
     <span className="absolute top-1.5 left-1.5 z-10 px-1.5 py-0.5 rounded-md bg-red-500 text-white text-[9px] font-bold uppercase tracking-wide leading-none">
       New
@@ -58,9 +52,19 @@ const NewBadge = ({ created_at }: { created_at: Date }) => {
    type=1 → large (used in DetailComponent)
    type=0/undefined → small (used in HomeComponent sidebar/grid)
 ───────────────────────────────────────────── */
-export const Ch = ({ thumbnail, chapter, volume, nama, created_at, bookId, id, type }: ChProps) => {
-  const date = getFormattedDate(created_at);
-  const chapterLabel = `Ch ${chapter}${volume ? ` · Vol ${volume}` : ''}`;
+export const Ch = ({
+  thumbnail,
+  chapter,
+  volume,
+  nama,
+  created_at,
+  bookId,
+  id,
+  type,
+  visitCount = 0,
+}: ChProps) => {
+  const date = getSmartDate(created_at);
+  const chapterLabel = `Ch ${chapter}${volume ? ` · Vol ${volume}` : ""}`;
 
   /* ── Large card (type=1, used in detail page) ── */
   if (type === 1) {
@@ -75,13 +79,26 @@ export const Ch = ({ thumbnail, chapter, volume, nama, created_at, bookId, id, t
           <img
             src={thumbnail || noImage}
             alt={chapterLabel}
+            loading="lazy"
             className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
           <div className="absolute bottom-0 left-0 right-0 p-2">
-            <p className="text-white text-[11px] font-semibold leading-tight">{chapterLabel}</p>
-            {nama && <p className="text-white/70 text-[10px] leading-tight truncate">{nama}</p>}
-            <p className="text-white/50 text-[9px] mt-0.5">{date}</p>
+            <p className="text-white text-[11px] font-semibold leading-tight">
+              {chapterLabel}
+            </p>
+            {nama && (
+              <p className="text-white/70 text-[10px] leading-tight truncate">
+                {nama}
+              </p>
+            )}
+            <div className="flex items-center justify-between mt-0.5">
+              <p className="text-white/50 text-[9px]">{date}</p>
+              <p className="inline-flex items-center gap-1 text-white/70 text-[9px]">
+                <Eye className="h-2.5 w-2.5" />
+                <span className="pt-0.5">{formatVisitCount(visitCount)}</span>
+              </p>
+            </div>
           </div>
         </div>
       </Link>
@@ -100,7 +117,8 @@ export const Ch = ({ thumbnail, chapter, volume, nama, created_at, bookId, id, t
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
       <div className="absolute bottom-0 left-0 right-0 p-1.5">
         <p className="text-white text-[10px] font-semibold leading-tight truncate">
-          {chapterLabel}{nama ? ` · ${nama}` : ''}
+          {chapterLabel}
+          {nama ? ` · ${nama}` : ""}
         </p>
         <p className="text-white/50 text-[9px]">{date}</p>
       </div>
@@ -112,45 +130,89 @@ export const Ch = ({ thumbnail, chapter, volume, nama, created_at, bookId, id, t
    NewCh — home page latest chapter card
    (cover + chapter info side-by-side)
 ───────────────────────────────────────────── */
-const NewCh = ({ tipe, judul, chapter, nama, created_at, cover, volume, id, bookId }: ChapterMixBook) => {
-  const date = getFormattedDate(created_at);
-  const chapterLabel = `Ch ${chapter}${volume ? ` · Vol ${volume}` : ''}`;
-  const isNew = isWithinOneWeek(new Date(created_at));
+const NewCh = ({
+  tipe,
+  judul,
+  chapter,
+  nama,
+  created_at,
+  cover,
+  thumbnail,
+  volume,
+  id,
+  bookId,
+  visitCount = 0,
+}: ChapterMixBook) => {
+  const date = getSmartDate(created_at);
+  const chapterLabel = `Ch ${chapter}${volume ? ` · Vol ${volume}` : ""}`;
+  const isNew = isWithinOneWeek(created_at);
 
   return (
-    <div className="flex gap-3 p-3 rounded-2xl bg-white dark:bg-white/3 border border-gray-100 dark:border-white/5 hover:bg-gray-50 dark:hover:bg-white/5 hover:border-gray-200 dark:hover:border-white/10 transition-all group cursor-pointer">
+    <div className="relative flex gap-3 p-2.5 rounded-2xl border border-gray-100 dark:border-white/10 hover:border-gray-200 dark:hover:border-white/20 transition-all group cursor-pointer overflow-hidden">
+      {/* Thumbnail background */}
+      {(thumbnail || cover) && (
+        <div className="absolute inset-0 z-0">
+          <img
+            src={thumbnail || cover || noImage}
+            alt=""
+            loading="lazy"
+            className="w-full h-full object-cover opacity-20 dark:opacity-30"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-white/60 via-white/40 to-white/80 dark:from-gray-950/70 dark:via-gray-950/50 dark:to-gray-950/80" />
+        </div>
+      )}
+
       {/* Cover */}
-      <Link to={DETAIL_PAGE} params={{ id: `${bookId}` }} className="shrink-0 relative">
-        <div className="w-16 h-24 rounded-xl overflow-hidden">
+      <Link
+        to={DETAIL_PAGE}
+        params={{ id: `${bookId}` }}
+        search={{ title: slugify(judul) }}
+        className="relative z-10 shrink-0"
+      >
+        <div className="w-24 h-32 rounded-xl overflow-hidden shadow-sm">
           <img
             src={cover || noImage}
             alt={judul}
+            loading="lazy"
             className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
         </div>
       </Link>
 
       {/* Info */}
-      <Link to={VIEW_PAGE} params={{ bookId: `${bookId}`, id: `${id}` }} className="flex-1 min-w-0 flex flex-col justify-between py-1">
-        <div>
+      <Link
+        to={VIEW_PAGE}
+        params={{ bookId: `${bookId}`, id: `${id}` }}
+        className="relative z-10 flex-1 min-w-0 flex flex-col justify-between py-0.5"
+      >
+        <div className="space-y-0.5">
           {tipe && (
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-white/25">{tipe}</span>
+            <span className="text-[9px] font-bold uppercase tracking-widest text-gray-400 dark:text-white/30">
+              {tipe}
+            </span>
           )}
-          <h2 className="text-sm font-semibold text-gray-800 dark:text-white/80 line-clamp-2 leading-snug mt-0.5">
+          <h2 className="text-[13px] font-semibold text-gray-800 dark:text-white/85 line-clamp-2 leading-snug">
             {judul}
           </h2>
+          <p className="text-xs text-gray-500 dark:text-white/45 font-medium truncate">
+            {chapterLabel}
+            {nama ? ` · ${nama}` : ""}
+          </p>
         </div>
-        <div className="flex items-center justify-between mt-1.5">
-          <span className="text-xs text-gray-500 dark:text-white/40 font-medium">
-            {chapterLabel}{nama ? ` · ${nama}` : ''}
-          </span>
+        <div className="flex items-center justify-between mt-1">
+          <div className="flex items-center gap-1 text-gray-400 dark:text-white/30">
+            <Eye className="h-3 w-3" />
+            <span className="text-[10px]">{formatVisitCount(visitCount)}</span>
+          </div>
           <div className="flex items-center gap-1.5">
             {isNew && (
-              <span className="px-1.5 py-0.5 rounded-md bg-red-500/10 text-red-500 dark:text-red-400 text-[9px] font-bold uppercase tracking-wide">
+              <span className="px-1.5 py-0.5 rounded-md bg-red-500/15 text-red-500 dark:text-red-400 text-[9px] font-bold uppercase tracking-wide leading-none">
                 New
               </span>
             )}
-            <span className="text-[10px] text-gray-400 dark:text-white/25">{date}</span>
+            <span className="text-[10px] text-gray-400 dark:text-white/30">
+              {date}
+            </span>
           </div>
         </div>
       </Link>

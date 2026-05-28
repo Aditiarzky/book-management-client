@@ -1,5 +1,6 @@
 import { Heart } from 'lucide-react';
 import { useLike } from '@/utils/use-like';
+import { formatVisitCount } from '@/lib/format';
 
 type LikeType = 'book' | 'chapter';
 
@@ -7,6 +8,7 @@ interface LikeButtonProps {
   type: LikeType;
   targetId: number;
   variant?: 'book' | 'chapter';
+  visitCount?: number;
 }
 
 function formatCount(n: number): string {
@@ -14,7 +16,7 @@ function formatCount(n: number): string {
   return n.toLocaleString('id-ID');
 }
 
-export default function LikeButton({ type, targetId, variant = 'book' }: LikeButtonProps) {
+export default function LikeButton({ type, targetId, variant = 'book', visitCount }: LikeButtonProps) {
   const { count, hasLiked, like, isLoading } = useLike(type, targetId);
 
   /* ─── CHAPTER variant ─── */
@@ -27,7 +29,7 @@ export default function LikeButton({ type, targetId, variant = 'book' }: LikeBut
         </p>
         <p className="mt-1.5 text-sm text-gray-400 dark:text-white/30 leading-relaxed max-w-xs">
           {hasLiked
-            ? 'Dukunganmu berarti banyak untuk kami terus berkarya.'
+            ? 'Dukunganmu berarti banyak untuk kami terus melanjutkan.'
             : 'Kalau kamu menikmatinya, klik tombol di bawah — itu berarti banyak buat kami!'}
         </p>
 
@@ -58,8 +60,8 @@ export default function LikeButton({ type, targetId, variant = 'book' }: LikeBut
 
         <p className="mt-3 text-xs text-gray-300 dark:text-white/20">
           {isLoading ? '' : count > 0
-            ? `${formatCount(count)} orang menyukai chapter ini`
-            : 'Jadilah yang pertama menyukainya'}
+            ? `Disukai ${formatVisitCount(count)} dari ${formatVisitCount(visitCount ?? 0)} pembaca`
+            : `Belum ada suka, ${formatVisitCount(visitCount ?? 0)} pembaca telah membaca ini.`}
         </p>
       </div>
     );
@@ -94,8 +96,8 @@ export default function LikeButton({ type, targetId, variant = 'book' }: LikeBut
         </p>
         <p className="text-[11px] text-gray-400 dark:text-white/25 leading-none">
           {isLoading ? '...' : count > 0
-            ? `${formatCount(count)} pembaca sudah menyukainya`
-            : 'Jadilah yang pertama!'}
+            ? `Disukai ${formatCount(count)} dari ${formatCount(visitCount ?? 0)} pembaca`
+            : `Belum ada suka, ${formatCount(visitCount ?? 0)} pembaca telah mampir.`}
         </p>
       </div>
     </button>

@@ -1,61 +1,50 @@
-export function formatDistanceToNow(date: Date, options?: { includeSeconds?: boolean }): string {
-  const now = new Date();
-  const diff = Math.floor((now.getTime() - date.getTime()) / 1000); // selisih dalam detik
+import dayjs from "dayjs";
+import relativeTime from "dayjs/plugin/relativeTime";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
+import "dayjs/locale/id";
 
-  if (diff < 60) {
-    return `${diff} detik lalu`;
-  } else if (diff < 3600) {
-    const minutes = Math.floor(diff / 60);
-    return `${minutes} menit lalu`;
-  } else if (diff < 86400) {
-    const hours = Math.floor(diff / 3600);
-    return `${hours} jam lalu`;
-  } else if (diff < 604800) {
-    const days = Math.floor(diff / 86400);
-    return `${days} hari lalu`;
-  } else if (options?.includeSeconds) {
-    const weeks = Math.floor(diff / 604800);
-    return `${weeks} minggu lalu`;
-  } else {
-    return formatDate(date);
-  }
+dayjs.extend(relativeTime);
+dayjs.extend(utc);
+dayjs.extend(timezone);
+dayjs.locale("id");
+
+// Pastikan tanggal selalu dikonversi ke local timezone dari browser user
+export function formatDistanceToNow(date: Date | string): string {
+  // Jika database mengembalikan string T...Z, tapi itu sebenarnya adalah waktu WIB (GMT+7) tanpa time zone, 
+  // kita perlu membuang karakter 'Z' terakhir sebelum parsing, atau menganggapnya lokal.
+  // Jika database sudah merekam secara benar sebagai true UTC, dayjs(date) sudah otomatis konversi ke local timezone.
+  return dayjs.utc(date).local().fromNow();
 }
 
-export function formatDate(date: Date): string {
-  const day = date.getDate();
-  const month = getMonthName(date.getMonth());
-  const year = date.getFullYear();
-
-  return `${day} ${month} ${year}`;
+export function formatDate(date: Date | string): string {
+  return dayjs.utc(date).local().format("D MMM YYYY");
 }
 
-export function getMonthName(monthIndex: number): string {
-  const monthNames = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'Mei',
-    'Jun',
-    'Jul',
-    'Agu',
-    'Sep',
-    'Okt',
-    'Nov',
-    'Des',
-  ];
-
-  return monthNames[monthIndex];
+export function formatDateTime(date: Date | string): string {
+  return dayjs.utc(date).local().format("D MMM YYYY, HH:mm");
 }
 
-export function isWithinOneWeek(date: Date): boolean {
-  const now = new Date();
-  const oneWeekAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
-  return date > oneWeekAgo;
+export function isWithinOneWeek(date: Date | string): boolean {
+  return dayjs().diff(dayjs.utc(date).local(), 'day') <= 7;
 }
 
-export function isWithinOneMonth(date: Date): boolean {
-  const now = new Date();
-  const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-  return date > oneMonthAgo;
+export function isWithinOneMonth(date: Date | string): boolean {
+  return dayjs().diff(dayjs.utc(date).local(), "month") === 0;
+}
+
+export function getSmartDate(date: Date | string): string {
+  if (isWithinOneWeek(date)) return formatDistanceToNow(date);
+  return formatDate(date);
+}
+
+export function slugify(text: string): string {
+  if (!text) return "";
+  return text
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "-") // Replace spaces with -
+    .replace(/[^\w-]+/g, "") // Remove all non-word chars
+    .replace(/--+/g, "-"); // Replace multiple - with single -
 }

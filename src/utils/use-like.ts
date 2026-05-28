@@ -51,27 +51,34 @@ export function useLike(type: LikeType, targetId: number) {
   const mutation = useMutation({
     mutationFn: () => incrementLike(type, targetId),
     onMutate: async () => {
-      // Optimistic update
+      // Simpan status liked di local storage SEBELUM mutasi agar user tidak klik 2x
+      localStorage.setItem(storageKey, 'true');
+      setHasLiked(true);
+
       await queryClient.cancelQueries({ queryKey });
       const prev = queryClient.getQueryData<number>(queryKey) ?? 0;
+
+      // Optimis: Langsung tambah 1 di UI
       queryClient.setQueryData(queryKey, prev + 1);
+
       return { prev };
     },
-    onError: (_err, _vars, ctx) => {
-      // Rollback
+    onError: (err, _vars, ctx) => {
+      // Jika gagal, kembalikan ke angka semula dan hapus tanda 'sudah like'
       queryClient.setQueryData(queryKey, ctx?.prev ?? 0);
       localStorage.removeItem(storageKey);
       setHasLiked(false);
+      console.error("Like failed:", err);
     },
     onSettled: () => {
+      // Sinkronkan dengan data asli dari DB setelah mutasi selesai
       queryClient.invalidateQueries({ queryKey });
     },
   });
 
   const like = () => {
-    if (hasLiked) return;
-    localStorage.setItem(storageKey, 'true');
-    setHasLiked(true);
+    // Cegah mutasi jika sudah pernah like atau sedang proses (loading)
+    if (hasLiked || mutation.isPending) return;
     mutation.mutate();
   };
 

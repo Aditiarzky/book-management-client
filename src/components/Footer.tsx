@@ -1,10 +1,12 @@
 import { useState } from "react"
 import { Facebook, Instagram, ChevronDown, ChevronUp, AlertCircle, Heart } from "lucide-react"
 import { MainLogo } from "./Logo"
+import { useOnlineCount } from "@/hooks/useOnlineCount"
 
 export const Footer = () => {
   const [isDisclaimerOpen, setIsDisclaimerOpen] = useState(false)
   const currentYear = new Date().getFullYear()
+  const onlineCount = useOnlineCount()
 
   return (
     <footer className="py-5 px-8 space-y-6 bg-gray-900 w-full">
@@ -71,6 +73,19 @@ export const Footer = () => {
                 .
               </p>
             </div>
+          </div>
+        </div>
+
+        {/* Online counter */}
+        <div className="flex justify-center my-2">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-800 border border-gray-700">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+            </span>
+            <span className="text-xs text-gray-400">
+              <span className="font-semibold text-emerald-400">{onlineCount}</span> online sekarang
+            </span>
           </div>
         </div>
 
