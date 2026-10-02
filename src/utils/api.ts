@@ -137,6 +137,15 @@ function normalizeBook(book: IBook) {
   };
 }
 
+function shuffleBooks(books: IBook[]) {
+  const items = [...books];
+  for (let i = items.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [items[i], items[j]] = [items[j], items[i]];
+  }
+  return items;
+}
+
 export async function getBooks(page = 1, limit = 10, sortBy: 'desc' | 'asc' = 'desc') {
   const from = (page - 1) * limit;
   const to = from + limit - 1;
@@ -183,7 +192,8 @@ export async function searchBooks(
   page = 1,
   limit = 20,
   creator = '',
-  genreIds: number[] = []
+  genreIds: number[] = [],
+  randomize = false
 ) {
   const from = (page - 1) * limit;
   const to = from + limit - 1;
@@ -232,11 +242,21 @@ export async function searchBooks(
   if (error) throw new Error(error.message);
 
   const total = count ?? 0;
+  const normalized = (data ?? []).map(normalizeBook);
   return {
-    data: (data ?? []).map(normalizeBook),
+    data: randomize ? shuffleBooks(normalized) : normalized,
     meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     success: true,
   };
+}
+
+export async function getMoreLikeThisBooks(
+  bookId: number,
+  genreIds: number[],
+  limit = 8,
+) {
+  const res = await searchBooks('', 1, Math.max(limit, 20), '', genreIds, true);
+  return (res.data ?? []).filter((book) => book.id !== bookId).slice(0, limit);
 }
 
 // BOOKS — mutate via Express

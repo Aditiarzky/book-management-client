@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { searchBooks } from '@/utils/api';
+import { getMoreLikeThisBooks } from '@/utils/api';
 import { DETAIL_PAGE } from '@/routes/constants';
 import { slugify } from '@/utils/format';
 import type { IBook } from '@/types/core.types';
@@ -19,17 +19,9 @@ export default function MoreLikeThis({ book }: { book: IBook }) {
 
   const { data, isLoading } = useQuery({
     queryKey: ['more-like-this', book.id, genreIds],
-    queryFn: () => searchBooks('', 1, 20, '', genreIds),
+    queryFn: () => getMoreLikeThisBooks(book.id, genreIds),
     enabled: genreIds.length > 0,
     staleTime: 10 * 60 * 1000,
-    select: (res) => {
-      const filtered = (res.data ?? []).filter((b: IBook) => b.id !== book.id);
-      for (let i = filtered.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [filtered[i], filtered[j]] = [filtered[j], filtered[i]];
-      }
-      return filtered.slice(0, 8);
-    },
   });
 
   if (!genreIds.length || (!isLoading && !data?.length)) return null;
